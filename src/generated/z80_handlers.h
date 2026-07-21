@@ -117,6 +117,7 @@ void z80_m_ed_ldi(z80_t *cpu);
 /* LDIR: (DE) ← (HL); HL ← HL ± 1; DE ← DE ± 1; BC ← BC - 1 */
 void z80_m_ed_ldir(z80_t *cpu);
 
+/* LD A,I: A ← interrupt control vector */
 void z80_m_ed_ld_a_i(z80_t *cpu);
 
 /* LD A,R: A ← refresh */

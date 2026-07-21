@@ -13,11 +13,6 @@ static void z80_step_done(z80_t *cpu) {
   }
 }
 
-static void z80_stub(z80_t *cpu) {
-  (void)cpu;
-  z80_finish(cpu);
-}
-
 static void z80_push16(z80_t *cpu, uint16_t v) {
   cpu->sp = (uint16_t)(cpu->sp - 1);
   z80_mem_wr(cpu, cpu->sp, (uint8_t)(v >> 8));
@@ -167,7 +162,8 @@ void z80_m_jp_nn(z80_t *cpu) {
     z80_step_done(cpu);
     break;
   case 3:
-    cpu->pc = (uint16_t)(cpu->tmp16 | ((uint16_t)z80_mem_rd(cpu, cpu->pc++) << 8));
+    cpu->tmp8 = z80_mem_rd(cpu, cpu->pc++);
+    cpu->pc = (uint16_t)(cpu->tmp16 | ((uint16_t)cpu->tmp8 << 8));
     z80_finish(cpu);
     break;
   default:
@@ -740,6 +736,60 @@ void z80_m_add_hl_rp(z80_t *cpu) {
   z80_advance(cpu);
 }
 
-void z80_m_daa(z80_t *cpu) { z80_stub(cpu); }
+void z80_m_daa(z80_t *cpu) {
+  uint8_t a = z80_get_a(cpu);
+  uint8_t f = z80_get_f(cpu);
+  uint8_t adjust = 0;
+  uint8_t cf = 0;
 
-void z80_m_ex_isp_hl(z80_t *cpu) { z80_stub(cpu); }
+  if ((f & Z80_HF) || ((a & 0x0F) > 9)) adjust |= 0x06;
+  if ((f & Z80_CF) || a > 0x99) {
+    adjust |= 0x60;
+    cf = Z80_CF;
+  }
+
+  if (f & Z80_NF) a = (uint8_t)(a - adjust);
+  else a = (uint8_t)(a + adjust);
+
+  {
+    uint8_t out = (uint8_t)((f & Z80_NF) | cf);
+    if (((z80_get_a(cpu) ^ a) & 0x10) != 0) out |= Z80_HF;
+    if (a & 0x80) out |= Z80_SF;
+    if (a == 0) out |= Z80_ZF;
+    out |= (uint8_t)(a & (Z80_YF | Z80_XF));
+    if (z80_parity(a)) out |= Z80_PF;
+    z80_set_a(cpu, a);
+    z80_set_f(cpu, out);
+  }
+  z80_finish(cpu);
+}
+
+void z80_m_ex_isp_hl(z80_t *cpu) {
+  /* EX (SP),HL — multi-M on real Z80; V1: staged swap */
+  switch (cpu->m_index) {
+  case 1:
+  case 2:
+    cpu->tmp8 = z80_mem_rd(cpu, cpu->sp);
+    z80_advance(cpu);
+    break;
+  case 3:
+    cpu->tmp16 = (uint16_t)(cpu->tmp8 | ((uint16_t)z80_mem_rd(cpu, (uint16_t)(cpu->sp + 1)) << 8));
+    z80_advance(cpu);
+    break;
+  case 4: {
+    uint16_t hl = z80_hl_or_ixiy(cpu);
+    z80_mem_wr(cpu, cpu->sp, (uint8_t)(hl & 0xFF));
+    cpu->tmp8 = (uint8_t)(hl >> 8);
+    z80_advance(cpu);
+    break;
+  }
+  case 5:
+    z80_mem_wr(cpu, (uint16_t)(cpu->sp + 1), cpu->tmp8);
+    z80_set_hl_or_ixiy(cpu, cpu->tmp16);
+    z80_finish(cpu);
+    break;
+  default:
+    z80_finish(cpu);
+    break;
+  }
+}

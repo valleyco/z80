@@ -421,21 +421,74 @@ def cc_width(mnemonic: str) -> int:
 def pattern_candidates(pattern: str) -> list[str]:
     """Yield normalization attempts for JSON patterns that encode 8 opcode bits.
 
-    Wikipedia-style dumps often write ``000RP001`` (3+2+3) instead of the real
-    Z80 layout ``00RP0001`` (2+2+4). Prefer candidates that match hardware encoding.
+    Wikipedia-style dumps often write multi-char field tokens with an extra ``0``,
+    so string length is 9 (or field placement is shifted). Prefer hardware encoding.
     """
+    # Explicit ED corrections (JSON 9-char forms → real 8-bit layouts)
+    ed_fixes = {
+        "010DDD000": "01DDD000",  # IN r,(C)
+        "010SSS001": "01SSS001",  # OUT (C),r
+        "010RP0100": "01RP0010",  # SBC HL,ss
+        "010RP0111": "01RP0011",  # LD (nn),ss
+        "010RP1100": "01RP1010",  # ADC HL,ss
+        "010RP1101": "01RP1011",  # LD ss,(nn)
+        "010000100": "01000100",  # NEG
+        "010000101": "01000101",  # RETN
+        "010001111": "01000111",  # LD I,A
+        "010011010": "01001101",  # RETI
+        "010011011": "01001111",  # LD R,A
+        "010101111": "01010111",  # LD A,I
+        "010111111": "01011111",  # LD A,R
+        "011001111": "01101111",  # RRD
+        "011011111": "01111111",  # RLD — wait RLD is ED 6F = 01101111
+    }
+    # Fix RLD/RRD properly:
+    # RRD = ED 67 = 01100111
+    # RLD = ED 6F = 01101111
+    ed_fixes["011001111"] = "01100111"  # RRD
+    ed_fixes["011011111"] = "01101111"  # RLD
+
+    # Block transfers: 1010Rxx00 style with extra trailing 0
+    # LDI=A0=10100000, LDIR=B0=10110000, LDD=A8=10101000, LDDR=B8=10111000
+    block_fixes = {
+        "101000000": "10100000",  # LDI
+        "101010000": "10110000",  # LDIR
+        "101001000": "10101000",  # LDD
+        "101011000": "10111000",  # LDDR
+        "101000001": "10100001",  # CPI
+        "101010001": "10110001",  # CPIR
+        "101001001": "10101001",  # CPD
+        "101011001": "10111001",  # CPDR
+        "101000010": "10100010",  # INI
+        "101010010": "10110010",  # INIR
+        "101001010": "10101010",  # IND
+        "101011010": "10111010",  # INDR
+        "101000011": "10100011",  # OUTI
+        "101010011": "10110011",  # OTIR
+        "101001011": "10101011",  # OUTD
+        "101011011": "10111011",  # OTDR
+    }
+
     preferred: list[str] = []
     fallback: list[str] = [pattern]
-    # 000RP001 → 00RP0001 (and same for 000RP010 / 000RP011)
+
+    if pattern in ed_fixes:
+        preferred.append(ed_fixes[pattern])
+    if pattern in block_fixes:
+        preferred.append(block_fixes[pattern])
+
+    # 000RP001 → 00RP0001 (root LD rp,nn and friends)
     if pattern.startswith("000RP") and len(pattern) == 8:
         preferred.append("00RP0" + pattern[5:])
+
     if len(pattern) == 9:
-        if pattern[2] == "0":
+        if pattern[2] == "0" and pattern not in ed_fixes and pattern not in block_fixes:
             preferred.append(pattern[:2] + pattern[3:])
-        if pattern.startswith("1010"):
+        if pattern.startswith("1010") and pattern not in block_fixes:
             preferred.append(pattern[:3] + pattern[4:])
         if all(ch in "01" for ch in pattern):
             preferred.append(pattern[:8])
+
     seen: set[str] = set()
     ordered: list[str] = []
     for cand in preferred + fallback:

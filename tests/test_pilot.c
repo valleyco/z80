@@ -201,6 +201,91 @@ static void test_dd_ld_r_mem(void) {
   CHECK(cpu.index == Z80_IDX_NONE, "index cleared after insn");
 }
 
+static void test_daa(void) {
+  bus_t bus;
+  z80_t cpu;
+  memset(&bus, 0, sizeof bus);
+  uint8_t prog[] = {0x27}; /* DAA */
+  load(&bus, 0, prog, sizeof prog);
+  z80_init(&cpu, (z80_bus_t){mem_read, mem_write, io_read, io_write, &bus});
+  cpu.af = 0x0900; /* A=9 after adding BCD-ish */
+  z80_step_m(&cpu);
+  CHECK(((cpu.af >> 8) & 0xFF) == 0x09, "DAA leaves 09 alone");
+}
+
+static void test_ex_isp_hl(void) {
+  bus_t bus;
+  z80_t cpu;
+  memset(&bus, 0, sizeof bus);
+  uint8_t prog[] = {0xE3}; /* EX (SP),HL */
+  load(&bus, 0, prog, sizeof prog);
+  z80_init(&cpu, (z80_bus_t){mem_read, mem_write, io_read, io_write, &bus});
+  cpu.sp = 0x8000;
+  cpu.hl = 0x1234;
+  bus.mem[0x8000] = 0x78;
+  bus.mem[0x8001] = 0x56;
+  run_ms(&cpu, 5);
+  CHECK(cpu.hl == 0x5678, "EX (SP),HL loads stack into HL");
+  CHECK(bus.mem[0x8000] == 0x34 && bus.mem[0x8001] == 0x12, "EX (SP),HL writes HL to stack");
+}
+
+static void test_ed_neg(void) {
+  bus_t bus;
+  z80_t cpu;
+  memset(&bus, 0, sizeof bus);
+  uint8_t prog[] = {0xED, 0x44}; /* NEG */
+  load(&bus, 0, prog, sizeof prog);
+  z80_init(&cpu, (z80_bus_t){mem_read, mem_write, io_read, io_write, &bus});
+  cpu.af = 0x0100;
+  run_ms(&cpu, 2);
+  CHECK(((cpu.af >> 8) & 0xFF) == 0xFF, "NEG 1 -> 0xFF");
+}
+
+static void test_ed_adc_hl(void) {
+  bus_t bus;
+  z80_t cpu;
+  memset(&bus, 0, sizeof bus);
+  uint8_t prog[] = {0xED, 0x5A}; /* ADC HL,DE */
+  load(&bus, 0, prog, sizeof prog);
+  z80_init(&cpu, (z80_bus_t){mem_read, mem_write, io_read, io_write, &bus});
+  cpu.hl = 0x1000;
+  cpu.de = 0x0200;
+  cpu.af = 0x0001; /* C set */
+  run_ms(&cpu, 5);
+  CHECK(cpu.hl == 0x1201, "ADC HL,DE with carry");
+}
+
+static void test_ed_ld_rp_inn(void) {
+  bus_t bus;
+  z80_t cpu;
+  memset(&bus, 0, sizeof bus);
+  /* ED 4B lo hi = LD BC,(nn) */
+  uint8_t prog[] = {0xED, 0x4B, 0x00, 0x40};
+  load(&bus, 0, prog, sizeof prog);
+  bus.mem[0x4000] = 0x34;
+  bus.mem[0x4001] = 0x12;
+  z80_init(&cpu, (z80_bus_t){mem_read, mem_write, io_read, io_write, &bus});
+  run_ms(&cpu, 6);
+  CHECK(cpu.bc == 0x1234, "LD BC,(nn)");
+}
+
+static void test_ed_cpi(void) {
+  bus_t bus;
+  z80_t cpu;
+  memset(&bus, 0, sizeof bus);
+  uint8_t prog[] = {0xED, 0xA1}; /* CPI */
+  load(&bus, 0, prog, sizeof prog);
+  z80_init(&cpu, (z80_bus_t){mem_read, mem_write, io_read, io_write, &bus});
+  cpu.af = 0x5500;
+  cpu.hl = 0x1000;
+  cpu.bc = 1;
+  bus.mem[0x1000] = 0x55;
+  run_ms(&cpu, 6);
+  CHECK(cpu.hl == 0x1001, "CPI increments HL");
+  CHECK(cpu.bc == 0, "CPI decrements BC");
+  CHECK((cpu.af & 0x40) != 0, "CPI sets Z on match");
+}
+
 int main(void) {
   test_nop();
   test_ld_r_r();
@@ -213,6 +298,12 @@ int main(void) {
   test_ed_in_c();
   test_ldir();
   test_dd_ld_r_mem();
+  test_daa();
+  test_ex_isp_hl();
+  test_ed_neg();
+  test_ed_adc_hl();
+  test_ed_ld_rp_inn();
+  test_ed_cpi();
 
   printf("%d passed, %d failed\n", tests_ok, tests_fail);
   return tests_fail ? 1 : 0;
