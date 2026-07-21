@@ -1,0 +1,1158 @@
+{
+  "source": [
+    "https://bitsavers.org/components/zilog/z80/03-0027-02_Z80_CPU_Product_Specification_Mar78.pdf",
+    "https://floooh.github.io/2021/12/06/z80-instruction-timing.html",
+    "https://en.wikipedia.org/wiki/Z80_instruction_set"
+  ],
+  "title": "Z80 machine cycle types",
+  "summary": {
+    "description": "A machine cycle (M-cycle) is a group of T-states (clock cycles) that perform one bus transaction or internal operation. Instructions are built from one or more M-cycles.",
+    "t_state": "One full clock period (\u03c6 cycle). Each T-state has two half-cycles (rising and falling clock edges).",
+    "default_lengths": {
+      "opcode_fetch": 4,
+      "memory_read": 3,
+      "memory_write": 3,
+      "io_read": 4,
+      "io_write": 4,
+      "interrupt_acknowledge": 7,
+      "internal": 1,
+      "halt_fetch": 4
+    },
+    "notes": [
+      "WAIT can extend any memory or I/O cycle by inserting Tw wait states.",
+      "I/O cycles include one automatically inserted wait state (Tw*) for port decode.",
+      "Interrupt acknowledge includes two automatically inserted wait states (Tw*).",
+      "Every M1 cycle (including prefix fetches) performs dynamic RAM refresh during T3\u2013T4."
+    ]
+  },
+  "signal_conventions": {
+    "active_level": "All control signals listed below are active LOW unless noted.",
+    "tri_state": [
+      "MREQ",
+      "IORQ",
+      "RD",
+      "WR",
+      "address_bus",
+      "data_bus"
+    ],
+    "bus_signals": {
+      "M1": "Machine cycle one \u2014 opcode fetch or interrupt acknowledge.",
+      "MREQ": "Memory request \u2014 address bus holds a valid memory address.",
+      "IORQ": "I/O request \u2014 lower address bus (A7\u2013A0) holds a valid I/O address.",
+      "RD": "Read \u2014 CPU requests data from memory or I/O.",
+      "WR": "Write \u2014 CPU drives stable data for memory or I/O write.",
+      "RFSH": "Refresh \u2014 lower 7 address bits (A6\u2013A0) hold a DRAM refresh address.",
+      "WAIT": "Input \u2014 when active, CPU inserts wait states until released.",
+      "HALT": "Output \u2014 CPU has executed HALT and awaits interrupt.",
+      "BUSAK": "Output \u2014 CPU has released the bus to an external master (DMA)."
+    },
+    "signal_state": {
+      "active": "Signal asserted (electrically low for control outputs)",
+      "inactive": "Signal deasserted (electrically high)",
+      "dont_care": "Signal state is not relevant for decoding this transaction"
+    },
+    "decode_signals": [
+      "M1",
+      "MREQ",
+      "IORQ",
+      "RD",
+      "WR",
+      "RFSH"
+    ],
+    "schema_rules": {
+      "bus_decoding": "Canonical definition of each bus transaction. Every entry lists all decode_signals with explicit active or inactive.",
+      "cycle_types.bus_transaction": "For single-transaction cycles, names a bus_decoding key. Resolve the full signal map from bus_decoding \u2014 never infer inactive from omission elsewhere.",
+      "cycle_types.bus_phases": "For multi-transaction cycles (e.g. opcode fetch), lists which bus_decoding key applies during which T-states.",
+      "half_cycles.signals": "Each half-cycle must include a signals object with all six decode_signals set to active or inactive. Omitted signals are invalid \u2014 absence does not mean inactive.",
+      "half_cycles.status_outputs": "Optional fields such as HALT are CPU status outputs, not part of decode_signals or the signals object."
+    },
+    "bus_decoding": {
+      "opcode_fetch_read": {
+        "M1": "active",
+        "MREQ": "active",
+        "IORQ": "inactive",
+        "RD": "active",
+        "WR": "inactive",
+        "RFSH": "inactive"
+      },
+      "memory_read": {
+        "M1": "inactive",
+        "MREQ": "active",
+        "IORQ": "inactive",
+        "RD": "active",
+        "WR": "inactive",
+        "RFSH": "inactive"
+      },
+      "memory_write": {
+        "M1": "inactive",
+        "MREQ": "active",
+        "IORQ": "inactive",
+        "RD": "inactive",
+        "WR": "active",
+        "RFSH": "inactive"
+      },
+      "io_read": {
+        "M1": "inactive",
+        "MREQ": "inactive",
+        "IORQ": "active",
+        "RD": "active",
+        "WR": "inactive",
+        "RFSH": "inactive"
+      },
+      "io_write": {
+        "M1": "inactive",
+        "MREQ": "inactive",
+        "IORQ": "active",
+        "RD": "inactive",
+        "WR": "active",
+        "RFSH": "inactive"
+      },
+      "refresh": {
+        "M1": "inactive",
+        "MREQ": "active",
+        "IORQ": "inactive",
+        "RD": "inactive",
+        "WR": "inactive",
+        "RFSH": "active"
+      },
+      "interrupt_vector_read": {
+        "M1": "active",
+        "MREQ": "inactive",
+        "IORQ": "active",
+        "RD": "active",
+        "WR": "inactive",
+        "RFSH": "inactive"
+      },
+      "none": {
+        "M1": "inactive",
+        "MREQ": "inactive",
+        "IORQ": "inactive",
+        "RD": "inactive",
+        "WR": "inactive",
+        "RFSH": "inactive"
+      }
+    }
+  },
+  "cycle_types": [
+    {
+      "id": "opcode_fetch",
+      "name": "Opcode Fetch",
+      "aliases": [
+        "M1",
+        "Op code fetch",
+        "Instruction fetch"
+      ],
+      "default_t_states": 4,
+      "bus_phases": [
+        {
+          "during": "T1-T2",
+          "bus_transaction": "opcode_fetch_read"
+        },
+        {
+          "during": "T3-T4",
+          "bus_transaction": "refresh"
+        }
+      ],
+      "also_performs": "DRAM refresh in T3\u2013T4",
+      "wait_sampled_at": "second half of T2",
+      "purpose": "Fetch instruction byte from memory at PC; increment PC; latch byte into IR.",
+      "t_states": [
+        {
+          "t": 1,
+          "half_cycles": [
+            {
+              "phase": "T1\u2191",
+              "address_bus": "PC (16-bit program address)",
+              "data_bus": "high_impedance (previous value may still appear)",
+              "cpu_action": "Drive PC onto address bus; assert M1.",
+              "signals": {
+                "M1": "active",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T1\u2193",
+              "address_bus": "PC",
+              "data_bus": "high_impedance",
+              "cpu_action": "Assert MREQ and RD; begin memory read; PC incremented.",
+              "signals": {
+                "M1": "active",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 2,
+          "half_cycles": [
+            {
+              "phase": "T2\u2191",
+              "address_bus": "PC (still driven during read setup)",
+              "data_bus": "memory drives fetched byte",
+              "cpu_action": "Memory places opcode byte on data bus.",
+              "signals": {
+                "M1": "active",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T2\u2193",
+              "address_bus": "PC",
+              "data_bus": "fetched byte stable",
+              "cpu_action": "WAIT sampled here; latch opcode into IR at end of read phase.",
+              "signals": {
+                "M1": "active",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 3,
+          "half_cycles": [
+            {
+              "phase": "T3\u2191",
+              "address_bus": "{I[7:0], R[7:0]} refresh address (16-bit)",
+              "data_bus": "high_impedance",
+              "cpu_action": "End opcode read; begin refresh: drive I:R on address bus; assert RFSH.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "active"
+              }
+            },
+            {
+              "phase": "T3\u2193",
+              "address_bus": "{I, R}",
+              "cpu_action": "Assert MREQ for refresh read; increment R register (lower 7 bits).",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "active"
+              }
+            }
+          ]
+        },
+        {
+          "t": 4,
+          "half_cycles": [
+            {
+              "phase": "T4\u2191",
+              "address_bus": "{I, R}",
+              "cpu_action": "DRAM refresh read \u2014 all dynamic memories should refresh.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "active"
+              }
+            },
+            {
+              "phase": "T4\u2193",
+              "address_bus": "lower byte often cleared (implementation detail)",
+              "cpu_action": "Complete refresh; CPU internally decodes/executes instruction.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "active"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "memory_read",
+      "name": "Memory Read",
+      "aliases": [
+        "MEM READ",
+        "Memory read cycle"
+      ],
+      "default_t_states": 3,
+      "bus_transaction": "memory_read",
+      "wait_sampled_at": "second half of T2",
+      "purpose": "Read one byte from memory (operand, immediate, indirect address, stack pop, etc.).",
+      "t_states": [
+        {
+          "t": 1,
+          "half_cycles": [
+            {
+              "phase": "T1\u2191",
+              "address_bus": "target memory address (16-bit)",
+              "data_bus": "high_impedance",
+              "cpu_action": "Drive read address onto address bus.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T1\u2193",
+              "address_bus": "target address",
+              "cpu_action": "Assert MREQ and RD; memory read begins.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 2,
+          "half_cycles": [
+            {
+              "phase": "T2\u2191",
+              "address_bus": "target address",
+              "data_bus": "memory drives byte",
+              "cpu_action": "Memory places data on data bus.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T2\u2193",
+              "address_bus": "target address",
+              "data_bus": "byte stable",
+              "cpu_action": "WAIT sampled; CPU samples data on rising edge of T3.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 3,
+          "half_cycles": [
+            {
+              "phase": "T3\u2191",
+              "address_bus": "target address",
+              "data_bus": "byte latched internally",
+              "cpu_action": "Complete read; load byte into destination register or internal latch.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T3\u2193",
+              "address_bus": "often cleared or next address prepared",
+              "cpu_action": "Deassert bus signals; end memory read cycle.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "memory_write",
+      "name": "Memory Write",
+      "aliases": [
+        "MEM WRITE",
+        "Memory write cycle"
+      ],
+      "default_t_states": 3,
+      "bus_transaction": "memory_write",
+      "wait_sampled_at": "second half of T2",
+      "purpose": "Write one byte to memory (store, push, indirect write, etc.).",
+      "t_states": [
+        {
+          "t": 1,
+          "half_cycles": [
+            {
+              "phase": "T1\u2191",
+              "address_bus": "target memory address (16-bit)",
+              "data_bus": "CPU begins driving write data",
+              "cpu_action": "Drive write address onto address bus.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T1\u2193",
+              "address_bus": "target address stable",
+              "data_bus": "write data stable",
+              "cpu_action": "Assert MREQ when address stable (usable as DRAM chip enable); data on bus.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 2,
+          "half_cycles": [
+            {
+              "phase": "T2\u2191",
+              "address_bus": "target address",
+              "data_bus": "write data",
+              "cpu_action": "Hold address and data.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T2\u2193",
+              "address_bus": "target address",
+              "data_bus": "write data stable",
+              "cpu_action": "Assert WR when data stable; memory latches write.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "active",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 3,
+          "half_cycles": [
+            {
+              "phase": "T3\u2191",
+              "address_bus": "target address",
+              "data_bus": "write data",
+              "cpu_action": "Complete write.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "active",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T3\u2193",
+              "address_bus": "held or next address",
+              "cpu_action": "Deassert bus signals; end memory write cycle.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "io_read",
+      "name": "I/O Read",
+      "aliases": [
+        "IN cycle",
+        "I/O read",
+        "Input cycle"
+      ],
+      "default_t_states": 4,
+      "bus_transaction": "io_read",
+      "automatic_wait_states": 1,
+      "wait_sampled_at": "second half of T3",
+      "purpose": "Read one byte from an I/O port. Port address on A7\u2013A0; for IN A,(n) upper address byte comes from A register.",
+      "t_states": [
+        {
+          "t": 1,
+          "half_cycles": [
+            {
+              "phase": "T1\u2191",
+              "address_bus": "I/O port address on A7\u2013A0 (A15\u2013A8 may hold port high byte for IN A,(n))",
+              "data_bus": "high_impedance",
+              "cpu_action": "Drive valid port address.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T1\u2193",
+              "address_bus": "port address",
+              "cpu_action": "Allow address to stabilize.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 2,
+          "half_cycles": [
+            {
+              "phase": "Tw\u2191",
+              "address_bus": "port address",
+              "cpu_action": "Automatic wait state (Tw*) \u2014 allows I/O device to decode address.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "Tw\u2193",
+              "address_bus": "port address",
+              "cpu_action": "Optional external WAIT may extend further from T3 onward.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 3,
+          "half_cycles": [
+            {
+              "phase": "T3\u2191",
+              "address_bus": "port address",
+              "cpu_action": "Assert IORQ and RD together; request port data.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "active",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T3\u2193",
+              "address_bus": "port address",
+              "data_bus": "I/O device drives byte",
+              "cpu_action": "WAIT sampled; device places data on bus.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "active",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 4,
+          "half_cycles": [
+            {
+              "phase": "T4\u2191",
+              "address_bus": "port address",
+              "data_bus": "input byte",
+              "cpu_action": "CPU latches input byte.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "active",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T4\u2193",
+              "cpu_action": "Deassert bus signals; end I/O read.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "io_write",
+      "name": "I/O Write",
+      "aliases": [
+        "OUT cycle",
+        "I/O write",
+        "Output cycle"
+      ],
+      "default_t_states": 4,
+      "bus_transaction": "io_write",
+      "automatic_wait_states": 1,
+      "wait_sampled_at": "second half of T3",
+      "purpose": "Write one byte to an I/O port.",
+      "t_states": [
+        {
+          "t": 1,
+          "half_cycles": [
+            {
+              "phase": "T1\u2191",
+              "address_bus": "I/O port address on A7\u2013A0",
+              "data_bus": "CPU drives output byte",
+              "cpu_action": "Drive port address and output data.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T1\u2193",
+              "address_bus": "port address",
+              "data_bus": "output byte",
+              "cpu_action": "Allow address and data to stabilize.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 2,
+          "half_cycles": [
+            {
+              "phase": "Tw\u2191",
+              "cpu_action": "Automatic wait state (Tw*) for port decode.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "Tw\u2193",
+              "cpu_action": "End automatic wait.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 3,
+          "half_cycles": [
+            {
+              "phase": "T3\u2191",
+              "address_bus": "port address",
+              "data_bus": "output byte",
+              "cpu_action": "Assert IORQ and WR together (same timing unlike memory write).",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "active",
+                "RD": "inactive",
+                "WR": "active",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T3\u2193",
+              "cpu_action": "WAIT sampled; port latches data.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "active",
+                "RD": "inactive",
+                "WR": "active",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 4,
+          "half_cycles": [
+            {
+              "phase": "T4\u2191",
+              "cpu_action": "Complete write.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "active",
+                "RD": "inactive",
+                "WR": "active",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T4\u2193",
+              "cpu_action": "Deassert bus signals; end I/O write.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "interrupt_acknowledge",
+      "name": "Interrupt Acknowledge",
+      "aliases": [
+        "INT ACK",
+        "M1 interrupt cycle"
+      ],
+      "default_t_states": 7,
+      "bus_transaction": "interrupt_vector_read",
+      "automatic_wait_states": 2,
+      "purpose": "Acknowledge maskable interrupt; interrupting device may place 8-bit vector on data bus (mode 2) or CPU fetches restart vector.",
+      "notes": [
+        "INT is sampled on rising edge of the last T-state of an instruction.",
+        "Uses M1 together with IORQ (not MREQ) to distinguish from opcode fetch.",
+        "Two automatic wait states support daisy-chain priority (e.g. Z80 PIO/CTC/SIO)."
+      ],
+      "t_states": [
+        {
+          "t": 1,
+          "half_cycles": [
+            {
+              "phase": "T1\u2191",
+              "address_bus": "PC or internal vector address (mode-dependent)",
+              "cpu_action": "Begin special M1 cycle for interrupt acknowledge.",
+              "signals": {
+                "M1": "active",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T1\u2193",
+              "cpu_action": "Assert IORQ and RD instead of MREQ \u2014 signals interrupt ACK.",
+              "signals": {
+                "M1": "active",
+                "MREQ": "inactive",
+                "IORQ": "active",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 2,
+          "half_cycles": [
+            {
+              "phase": "Tw1",
+              "cpu_action": "First automatic wait state (Tw*); interrupt acknowledge signals held.",
+              "signals": {
+                "M1": "active",
+                "MREQ": "inactive",
+                "IORQ": "active",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 3,
+          "half_cycles": [
+            {
+              "phase": "Tw2",
+              "cpu_action": "Second automatic wait state (Tw*); interrupt acknowledge signals held.",
+              "signals": {
+                "M1": "active",
+                "MREQ": "inactive",
+                "IORQ": "active",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 4,
+          "half_cycles": [
+            {
+              "phase": "T3\u2191",
+              "data_bus": "interrupt device may drive vector byte (mode 2)",
+              "cpu_action": "Read interrupt response vector from data bus.",
+              "signals": {
+                "M1": "active",
+                "MREQ": "inactive",
+                "IORQ": "active",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T3\u2193",
+              "cpu_action": "Latch vector; IFF1 cleared earlier at end of previous instruction.",
+              "signals": {
+                "M1": "active",
+                "MREQ": "inactive",
+                "IORQ": "active",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": "5-7",
+          "cpu_action": "Additional cycles for refresh and internal interrupt sequence setup; followed by stack writes and PC load per interrupt mode (0, 1, or 2)."
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "name": "Internal / Extra Cycle",
+      "aliases": [
+        "Extra",
+        "Internal operation",
+        "ALU cycle"
+      ],
+      "default_t_states": 1,
+      "bus_transaction": "none",
+      "purpose": "Internal CPU work with no external memory or I/O access \u2014 ALU operations, register transfers, flag updates, SP pre-decrement before PUSH, PC/WZ setup for JR/JP, etc.",
+      "t_states": [
+        {
+          "t": 1,
+          "half_cycles": [
+            {
+              "phase": "T\u2191",
+              "address_bus": "high_impedance or holds previous value",
+              "data_bus": "high_impedance or holds previous value",
+              "cpu_action": "Internal register/ALU operation only.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T\u2193",
+              "cpu_action": "Complete internal operation; no WAIT sampling (WAIT does not extend internal cycles).",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        }
+      ],
+      "examples": [
+        "PUSH: one internal cycle to pre-decrement SP before memory writes",
+        "JR/JP: internal cycle to compute branch target into WZ",
+        "ALU ops on registers: ADD A,B etc. may use internal time within M1 decode",
+        "XOR A and similar: flag/register update may overlap next instruction's M1"
+      ]
+    },
+    {
+      "id": "halt_fetch",
+      "name": "HALT Fetch (NOP execution while halted)",
+      "aliases": [
+        "HALT state cycle",
+        "Halt refresh cycle"
+      ],
+      "default_t_states": 4,
+      "bus_phases": [
+        {
+          "during": "T1-T2",
+          "bus_transaction": "opcode_fetch_read"
+        },
+        {
+          "during": "T3-T4",
+          "bus_transaction": "refresh"
+        }
+      ],
+      "purpose": "After HALT instruction, CPU stops executing program code but continues opcode-fetch-like cycles reading 0x00 (NOP) to keep DRAM refreshed until interrupt.",
+      "t_states": [
+        {
+          "t": 1,
+          "half_cycles": [
+            {
+              "phase": "T1\u2191",
+              "HALT": true,
+              "address_bus": "PC (typically unchanged or fetches NOP)",
+              "cpu_action": "HALT output active; CPU in low-power wait for interrupt.",
+              "signals": {
+                "M1": "active",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T1\u2193",
+              "address_bus": "PC",
+              "data_bus": "high_impedance",
+              "cpu_action": "Fetch NOP-like byte to maintain bus timing.",
+              "signals": {
+                "M1": "active",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 2,
+          "half_cycles": [
+            {
+              "phase": "T2\u2191",
+              "HALT": true,
+              "address_bus": "PC",
+              "data_bus": "NOP byte (0x00)",
+              "cpu_action": "Memory drives NOP byte on data bus.",
+              "signals": {
+                "M1": "active",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            },
+            {
+              "phase": "T2\u2193",
+              "HALT": true,
+              "address_bus": "PC",
+              "data_bus": "NOP byte stable",
+              "cpu_action": "Latch NOP; no program progress.",
+              "signals": {
+                "M1": "active",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "active",
+                "WR": "inactive",
+                "RFSH": "inactive"
+              }
+            }
+          ]
+        },
+        {
+          "t": 3,
+          "half_cycles": [
+            {
+              "phase": "T3\u2191",
+              "HALT": true,
+              "address_bus": "{I[7:0], R[7:0]} refresh address (16-bit)",
+              "data_bus": "high_impedance",
+              "cpu_action": "Begin DRAM refresh.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "active"
+              }
+            },
+            {
+              "phase": "T3\u2193",
+              "HALT": true,
+              "address_bus": "{I, R}",
+              "cpu_action": "Assert MREQ for refresh read; increment R register.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "active"
+              }
+            }
+          ]
+        },
+        {
+          "t": 4,
+          "half_cycles": [
+            {
+              "phase": "T4\u2191",
+              "HALT": true,
+              "address_bus": "{I, R}",
+              "cpu_action": "DRAM refresh read.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "active",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "active"
+              }
+            },
+            {
+              "phase": "T4\u2193",
+              "HALT": true,
+              "address_bus": "lower byte often cleared (implementation detail)",
+              "cpu_action": "Complete refresh; remain halted until interrupt.",
+              "signals": {
+                "M1": "inactive",
+                "MREQ": "inactive",
+                "IORQ": "inactive",
+                "RD": "inactive",
+                "WR": "inactive",
+                "RFSH": "active"
+              }
+            }
+          ]
+        }
+      ],
+      "notes": [
+        "HALT pin is asserted after HALT opcode executes.",
+        "NMI or maskable interrupt (when enabled) clears HALT state.",
+        "While halted, CPU does not enter WAIT-induced refresh loss \u2014 refresh continues."
+      ]
+    }
+  ],
+  "special_bus_states": [
+    {
+      "id": "bus_acknowledge",
+      "name": "Bus Acknowledge (BUSAK)",
+      "description": "Not a machine cycle \u2014 response to BUSRQ. CPU tri-states address bus, data bus, RD, WR, MREQ, and IORQ so an external DMA controller can use the bus.",
+      "signals": {
+        "BUSAK": true,
+        "address_bus": "high_impedance",
+        "data_bus": "high_impedance",
+        "MREQ": "high_impedance (inactive)",
+        "IORQ": "high_impedance (inactive)",
+        "RD": "high_impedance (inactive)",
+        "WR": "high_impedance (inactive)"
+      }
+    },
+    {
+      "id": "reset",
+      "name": "Reset",
+      "description": "During RESET (minimum 3 clock cycles), PC/I/R cleared; address and data buses high-impedance; all control outputs inactive.",
+      "duration_min_t_states": 3
+    }
+  ],
+  "wait_states": {
+    "description": "When WAIT is sampled active, the CPU inserts one or more Tw cycles and holds the current bus transaction until WAIT is released.",
+    "sample_points": {
+      "opcode_fetch": "second half of T2",
+      "memory_read": "second half of T2",
+      "memory_write": "second half of T2",
+      "io_read": "second half of T3",
+      "io_write": "second half of T3"
+    },
+    "effect": "Extends the current M-cycle; does not perform refresh during inserted waits."
+  }
+}

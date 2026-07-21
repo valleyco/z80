@@ -1,0 +1,185 @@
+{
+  "source": "https://en.wikipedia.org/wiki/Z80_instruction_set",
+  "prefix": "CB",
+  "flags_order": [
+    "S",
+    "Z",
+    "F5",
+    "H",
+    "F3",
+    "P/V",
+    "N",
+    "C"
+  ],
+  "instructions": [
+    {
+      "mnemonic": "RLC sss",
+      "opcode": "00000SSS",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "0",
+        "-",
+        "P/V",
+        "0",
+        "C"
+      ],
+      "description": "R1-7 \u2190 R0-6; R0 \u2190 Cy \u2190 R7"
+    },
+    {
+      "mnemonic": "RRC sss",
+      "opcode": "00001SSS",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "0",
+        "-",
+        "P/V",
+        "0",
+        "C"
+      ],
+      "description": "R0-6 \u2190 R1-7; R7 \u2190 Cy \u2190 R0"
+    },
+    {
+      "mnemonic": "RL sss",
+      "opcode": "00010SSS",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "0",
+        "-",
+        "P/V",
+        "0",
+        "C"
+      ],
+      "description": "R1-7 \u2190 R0-6; Cy \u2190 R7; R0 \u2190 Cy"
+    },
+    {
+      "mnemonic": "RR sss",
+      "opcode": "00011SSS",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "0",
+        "-",
+        "P/V",
+        "0",
+        "C"
+      ],
+      "description": "R0-6 \u2190 R1-7; Cy \u2190 R0; R7 \u2190 Cy"
+    },
+    {
+      "mnemonic": "SLA sss",
+      "opcode": "00100SSS",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "0",
+        "-",
+        "P/V",
+        "0",
+        "C"
+      ],
+      "description": "Cy \u2190 R7; R1-7 \u2190 R0-6; R0 \u2190 0"
+    },
+    {
+      "mnemonic": "SRA sss",
+      "opcode": "00101SSS",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "0",
+        "-",
+        "P/V",
+        "0",
+        "C"
+      ],
+      "description": "Cy \u2190 R0; R0-6 \u2190 R1-7"
+    },
+    {
+      "mnemonic": "SRL sss",
+      "opcode": "00111SSS",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "0",
+        "-",
+        "P/V",
+        "0",
+        "C"
+      ],
+      "description": "Cy \u2190 R0; R0-6 \u2190 R1-7; R7 \u2190 0"
+    },
+    {
+      "mnemonic": "BIT bbb,sss",
+      "opcode": "01bbbSSS",
+      "operand": [
+        "bbb",
+        "sss"
+      ],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "1",
+        "-",
+        "P/V",
+        "0",
+        "0"
+      ],
+      "description": "R \u2227 (1 << b)"
+    },
+    {
+      "mnemonic": "RES bbb,sss",
+      "opcode": "10bbbSSS",
+      "operand": [
+        "bbb",
+        "sss"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "R \u2190 R \u2227 \u00ac(1 << b)"
+    },
+    {
+      "mnemonic": "SET bbb,sss",
+      "opcode": "11bbbSSS",
+      "operand": [
+        "bbb",
+        "sss"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "R \u2190 R \u2228 (1 << b)"
+    }
+  ]
+}

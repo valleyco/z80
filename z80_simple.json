@@ -1,0 +1,888 @@
+{
+  "source": "https://en.wikipedia.org/wiki/Z80_instruction_set",
+  "flags_order": [
+    "S",
+    "Z",
+    "F5",
+    "H",
+    "F3",
+    "P/V",
+    "N",
+    "C"
+  ],
+  "instructions": [
+    {
+      "mnemonic": "NOP",
+      "opcode": "00000000",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "No operation"
+    },
+    {
+      "mnemonic": "LD rp,data",
+      "opcode": "000RP001",
+      "operand": [
+        "datlo",
+        "dathi"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "RP \u2190 data"
+    },
+    {
+      "mnemonic": "LD (rp),A",
+      "opcode": "000RP010",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "(RP) \u2190 A [BC or DE only]"
+    },
+    {
+      "mnemonic": "INC rp",
+      "opcode": "000RP011",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "RP \u2190 RP + 1"
+    },
+    {
+      "mnemonic": "INC ddd",
+      "opcode": "000DDD100",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "0",
+        "-"
+      ],
+      "description": "DDD \u2190 DDD + 1"
+    },
+    {
+      "mnemonic": "DEC ddd",
+      "opcode": "000DDD101",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "-"
+      ],
+      "description": "DDD \u2190 DDD - 1"
+    },
+    {
+      "mnemonic": "LD ddd,data",
+      "opcode": "000DDD110",
+      "operand": [
+        "data"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "DDD \u2190 data"
+    },
+    {
+      "mnemonic": "RLCA",
+      "opcode": "00000111",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "C"
+      ],
+      "description": "A1-7 \u2190 A0-6; A0 \u2190 Cy \u2190 A7"
+    },
+    {
+      "mnemonic": "ADD HL,rp",
+      "opcode": "000RP1001",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "H",
+        "-",
+        "-",
+        "0",
+        "C"
+      ],
+      "description": "HL \u2190 HL + RP"
+    },
+    {
+      "mnemonic": "LD A,(rp)",
+      "opcode": "000RP1010",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "A \u2190 (RP) [BC or DE only]"
+    },
+    {
+      "mnemonic": "DEC rp",
+      "opcode": "000RP1011",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "RP \u2190 RP - 1"
+    },
+    {
+      "mnemonic": "EX AF,AF'",
+      "opcode": "00001000",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "AF \u2194 AF\u2032"
+    },
+    {
+      "mnemonic": "RRCA",
+      "opcode": "00001111",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "C"
+      ],
+      "description": "A0-6 \u2190 A1-7; A7 \u2190 Cy \u2190 A0"
+    },
+    {
+      "mnemonic": "DJNZ offset",
+      "opcode": "00010000",
+      "operand": [
+        "offset"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "B = B - 1; if B \u2260 0 then PC \u2190 PC + offset"
+    },
+    {
+      "mnemonic": "RLA",
+      "opcode": "00010111",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "C"
+      ],
+      "description": "A1-7 \u2190 A0-6; Cy \u2190 A7; A0 \u2190 Cy"
+    },
+    {
+      "mnemonic": "JR offset",
+      "opcode": "00011000",
+      "operand": [
+        "offset"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "PC \u2190 PC + offset"
+    },
+    {
+      "mnemonic": "RRA",
+      "opcode": "00011111",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "C"
+      ],
+      "description": "A0-6 \u2190 A1-7; Cy \u2190 A0; A7 \u2190 Cy"
+    },
+    {
+      "mnemonic": "JR cc,offset",
+      "opcode": "001CC000",
+      "operand": [
+        "offset"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "If CC0-1 true, PC \u2190 PC + offset (Only 2 bits of CC used: NZ, Z, NC, C)"
+    },
+    {
+      "mnemonic": "LD (add),HL",
+      "opcode": "00100010",
+      "operand": [
+        "addlo",
+        "addhi"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "(add) \u2190 HL"
+    },
+    {
+      "mnemonic": "DAA",
+      "opcode": "00100111",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "H",
+        "-",
+        "-",
+        "-",
+        "C"
+      ],
+      "description": "In N flag = 0 {If A0-3 > 9 OR AC = 1 then A \u2190 A + 6; then if A4-7 > 9 OR Cy = 1 then A \u2190 A + 0x60} else {do post-subtract DAA}"
+    },
+    {
+      "mnemonic": "LD HL,(add)",
+      "opcode": "00101010",
+      "operand": [
+        "addlo",
+        "addhi"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "HL \u2190 (add)"
+    },
+    {
+      "mnemonic": "CPL",
+      "opcode": "00101111",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "1",
+        "-",
+        "-",
+        "1",
+        "-"
+      ],
+      "description": "A \u2190 \u00acA"
+    },
+    {
+      "mnemonic": "LD (add),A",
+      "opcode": "00110010",
+      "operand": [
+        "addlo",
+        "addhi"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "(add) \u2190 A"
+    },
+    {
+      "mnemonic": "SCF",
+      "opcode": "00110111",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "0",
+        "-",
+        "-",
+        "0",
+        "1"
+      ],
+      "description": "Cy \u2190 1"
+    },
+    {
+      "mnemonic": "LD A,(add)",
+      "opcode": "00111010",
+      "operand": [
+        "addlo",
+        "addhi"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "A \u2190 (add)"
+    },
+    {
+      "mnemonic": "CCF",
+      "opcode": "00111111",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "C",
+        "-",
+        "-",
+        "0",
+        "?"
+      ],
+      "description": "Cy \u2190 \u00acCy"
+    },
+    {
+      "mnemonic": "LD ddd,sss",
+      "opcode": "01DDDSSS",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "DDD \u2190 SSS"
+    },
+    {
+      "mnemonic": "HALT",
+      "opcode": "01110110",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "Halt"
+    },
+    {
+      "mnemonic": "alu A,sss",
+      "opcode": "10ALUSSS",
+      "operand": [],
+      "flags_effected": [
+        "+",
+        "+",
+        "-",
+        "+",
+        "-",
+        "+",
+        "+",
+        "+"
+      ],
+      "description": "A \u2190 A [ALU operation] SSS"
+    },
+    {
+      "mnemonic": "RET cc",
+      "opcode": "11CC000",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "If cc true, PC \u2190 (SP), SP \u2190 SP + 2"
+    },
+    {
+      "mnemonic": "POP rp",
+      "opcode": "11RP0001",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "RP \u2190 (SP), SP \u2190 SP + 2"
+    },
+    {
+      "mnemonic": "JP cc,add",
+      "opcode": "11CC010",
+      "operand": [
+        "addlo",
+        "addhi"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "If cc true, PC \u2190 add"
+    },
+    {
+      "mnemonic": "JP add",
+      "opcode": "11000011",
+      "operand": [
+        "addlo",
+        "addhi"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "PC \u2190 add"
+    },
+    {
+      "mnemonic": "CALL cc,add",
+      "opcode": "11CC100",
+      "operand": [
+        "addlo",
+        "addhi"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "If cc true, SP \u2190 SP - 2, (SP) \u2190 PC, PC \u2190 add"
+    },
+    {
+      "mnemonic": "PUSH rp",
+      "opcode": "11RP0101",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "SP \u2190 SP - 2, (SP) \u2190 RP"
+    },
+    {
+      "mnemonic": "alu A,data",
+      "opcode": "11ALU110",
+      "operand": [
+        "data"
+      ],
+      "flags_effected": [
+        "+",
+        "+",
+        "-",
+        "+",
+        "-",
+        "+",
+        "+",
+        "+"
+      ],
+      "description": "A \u2190 A [ALU operation] data"
+    },
+    {
+      "mnemonic": "RST n",
+      "opcode": "11N111",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "SP \u2190 SP - 2, (SP) \u2190 PC, PC \u2190 N"
+    },
+    {
+      "mnemonic": "RET",
+      "opcode": "11001001",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "PC \u2190 (SP), SP \u2190 SP + 2"
+    },
+    {
+      "mnemonic": "CB prefix",
+      "opcode": "11001011",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "See CB prefix table"
+    },
+    {
+      "mnemonic": "CALL add",
+      "opcode": "11001101",
+      "operand": [
+        "addlo",
+        "addhi"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "SP \u2190 SP - 2, (SP) \u2190 PC, PC \u2190 add"
+    },
+    {
+      "mnemonic": "OUT (port),A",
+      "opcode": "11010011",
+      "operand": [
+        "port"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "Port(A:port) \u2190 A"
+    },
+    {
+      "mnemonic": "EXX",
+      "opcode": "11011001",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "BC \u2194 BC\u2032, DE \u2194 DE\u2032, HL \u2194 HL\u2032"
+    },
+    {
+      "mnemonic": "IN A,(port)",
+      "opcode": "11011011",
+      "operand": [
+        "port"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "A \u2190 Port(A:port)"
+    },
+    {
+      "mnemonic": "IX override",
+      "opcode": "11011101",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "HL becomes IX; (HL) becomes (IX + offset)"
+    },
+    {
+      "mnemonic": "EX (SP),HL",
+      "opcode": "11100011",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "(SP) \u2194 HL"
+    },
+    {
+      "mnemonic": "JP (HL)",
+      "opcode": "11101001",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "PC \u2190 HL"
+    },
+    {
+      "mnemonic": "EX DE,HL",
+      "opcode": "11101011",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "HL \u2194 DE"
+    },
+    {
+      "mnemonic": "ED prefix",
+      "opcode": "11101101",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "See ED prefix table"
+    },
+    {
+      "mnemonic": "DI",
+      "opcode": "11110011",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "IFF1 \u2190 IFF2 \u2190 0; Disable interrupts"
+    },
+    {
+      "mnemonic": "LD SP,HL",
+      "opcode": "11111001",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "SP \u2190 HL"
+    },
+    {
+      "mnemonic": "EI",
+      "opcode": "11111011",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "IFF1 \u2190 IFF2 \u2190 1; Enable interrupts"
+    },
+    {
+      "mnemonic": "IY override",
+      "opcode": "11111101",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "HL becomes IY; (HL) becomes (IY + offset)"
+    }
+  ]
+}

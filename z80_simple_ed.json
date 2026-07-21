@@ -1,0 +1,534 @@
+{
+  "source": "https://en.wikipedia.org/wiki/Z80_instruction_set",
+  "prefix": "ED",
+  "flags_order": [
+    "S",
+    "Z",
+    "F5",
+    "H",
+    "F3",
+    "P/V",
+    "N",
+    "C"
+  ],
+  "instructions": [
+    {
+      "mnemonic": "IN ddd,(C)",
+      "opcode": "010DDD000",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "0",
+        "C"
+      ],
+      "description": "DDD \u2190 port(BC) [Except (HL)] (Port number is 16 bits)"
+    },
+    {
+      "mnemonic": "OUT (C),sss",
+      "opcode": "010SSS001",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "port(BC) \u2190 SSS [Except (HL)] (Port number is 16 bits)"
+    },
+    {
+      "mnemonic": "SBC HL,ss",
+      "opcode": "010RP0100",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "C"
+      ],
+      "description": "HL \u2190 HL \u2013 ss \u2013 CY"
+    },
+    {
+      "mnemonic": "LD (add),ss",
+      "opcode": "010RP0111",
+      "operand": [
+        "addlo",
+        "addhi"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "(add) \u2190 RP"
+    },
+    {
+      "mnemonic": "NEG",
+      "opcode": "010000100",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "C"
+      ],
+      "description": "A \u2190 0 - A"
+    },
+    {
+      "mnemonic": "RETN",
+      "opcode": "010000101",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "PC \u2190 (SP); SP \u2190 SP + 2; IFF1 \u2190 IFF2"
+    },
+    {
+      "mnemonic": "IM n",
+      "opcode": "010NN110",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "Interrupt mode 0, 1, 2 (encoded 0, 2, 3)"
+    },
+    {
+      "mnemonic": "LD I,A",
+      "opcode": "010001111",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "interrupt control vector \u2190 A"
+    },
+    {
+      "mnemonic": "ADC HL,ss",
+      "opcode": "010RP1100",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "0",
+        "C"
+      ],
+      "description": "HL \u2190 HL + ss + CY"
+    },
+    {
+      "mnemonic": "LD dd,(add)",
+      "opcode": "010RP1101",
+      "operand": [
+        "addlo",
+        "addhi"
+      ],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "RP \u2190 (add)"
+    },
+    {
+      "mnemonic": "RETI",
+      "opcode": "010011010",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "PC \u2190 (SP); SP \u2190 SP + 2; IFF1 \u2190 IFF2"
+    },
+    {
+      "mnemonic": "LD R,A",
+      "opcode": "010011011",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "-"
+      ],
+      "description": "refresh \u2190 A"
+    },
+    {
+      "mnemonic": "LD A,I",
+      "opcode": "010101111",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "H",
+        "-",
+        "?",
+        "0",
+        "-"
+      ],
+      "description": "A \u2190 interrupt control vector"
+    },
+    {
+      "mnemonic": "LD A,R",
+      "opcode": "010111111",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "H",
+        "-",
+        "?",
+        "0",
+        "-"
+      ],
+      "description": "A \u2190 refresh"
+    },
+    {
+      "mnemonic": "RRD",
+      "opcode": "011001111",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "0",
+        "C"
+      ],
+      "description": "A0-3 \u2190 (HL)0-3; (HL)7-4 \u2190 A0-3; (HL)0-3 \u2190 (HL)7-4"
+    },
+    {
+      "mnemonic": "RLD",
+      "opcode": "011011111",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "0",
+        "C"
+      ],
+      "description": "A0-3 \u2190 (HL)7-4; (HL)0-3 \u2190 A0-3; (HL)7-4 \u2190 (HL)0-3"
+    },
+    {
+      "mnemonic": "LDI",
+      "opcode": "101000000",
+      "operand": [],
+      "flags_effected": [
+        "0",
+        "-",
+        "-",
+        "0",
+        "-",
+        "P/V",
+        "0",
+        "-"
+      ],
+      "description": "(DE) \u2190 (HL); HL \u2190 HL \u00b1 1; DE \u2190 DE \u00b1 1; BC \u2190 BC - 1"
+    },
+    {
+      "mnemonic": "LDIR",
+      "opcode": "101010000",
+      "operand": [],
+      "flags_effected": [
+        "0",
+        "-",
+        "-",
+        "0",
+        "-",
+        "P/V",
+        "0",
+        "-"
+      ],
+      "description": "(DE) \u2190 (HL); HL \u2190 HL \u00b1 1; DE \u2190 DE \u00b1 1; BC \u2190 BC - 1"
+    },
+    {
+      "mnemonic": "LDD",
+      "opcode": "101001000",
+      "operand": [],
+      "flags_effected": [
+        "0",
+        "-",
+        "-",
+        "0",
+        "-",
+        "P/V",
+        "0",
+        "-"
+      ],
+      "description": "(DE) \u2190 (HL); HL \u2190 HL \u00b1 1; DE \u2190 DE \u00b1 1; BC \u2190 BC - 1"
+    },
+    {
+      "mnemonic": "LDDR",
+      "opcode": "101011000",
+      "operand": [],
+      "flags_effected": [
+        "0",
+        "-",
+        "-",
+        "0",
+        "-",
+        "P/V",
+        "0",
+        "-"
+      ],
+      "description": "(DE) \u2190 (HL); HL \u2190 HL \u00b1 1; DE \u2190 DE \u00b1 1; BC \u2190 BC - 1"
+    },
+    {
+      "mnemonic": "CPI",
+      "opcode": "101000001",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "C"
+      ],
+      "description": "A - (HL); HL \u2190 HL \u00b1 1; BC \u2190 BC - 1"
+    },
+    {
+      "mnemonic": "CPIR",
+      "opcode": "101010001",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "C"
+      ],
+      "description": "A - (HL); HL \u2190 HL \u00b1 1; BC \u2190 BC - 1"
+    },
+    {
+      "mnemonic": "CPD",
+      "opcode": "101001001",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "C"
+      ],
+      "description": "A - (HL); HL \u2190 HL \u00b1 1; BC \u2190 BC - 1"
+    },
+    {
+      "mnemonic": "CPDR",
+      "opcode": "101011001",
+      "operand": [],
+      "flags_effected": [
+        "S",
+        "Z",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "C"
+      ],
+      "description": "A - (HL); HL \u2190 HL \u00b1 1; BC \u2190 BC - 1"
+    },
+    {
+      "mnemonic": "INI",
+      "opcode": "101000010",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "C"
+      ],
+      "description": "(HL) \u2190 port(BC); HL \u2190 HL \u00b1 1; B \u2190 B \u2013 1"
+    },
+    {
+      "mnemonic": "INIR",
+      "opcode": "101010010",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "C"
+      ],
+      "description": "(HL) \u2190 port(BC); HL \u2190 HL \u00b1 1; B \u2190 B \u2013 1"
+    },
+    {
+      "mnemonic": "IND",
+      "opcode": "101001010",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "C"
+      ],
+      "description": "(HL) \u2190 port(BC); HL \u2190 HL \u00b1 1; B \u2190 B \u2013 1"
+    },
+    {
+      "mnemonic": "INDR",
+      "opcode": "101011010",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "C"
+      ],
+      "description": "(HL) \u2190 port(BC); HL \u2190 HL \u00b1 1; B \u2190 B \u2013 1"
+    },
+    {
+      "mnemonic": "OUTI",
+      "opcode": "101000011",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "C"
+      ],
+      "description": "B \u2190 B \u2013 1; port(BC) \u2190 (HL); HL \u2190 HL \u00b1 1"
+    },
+    {
+      "mnemonic": "OTIR",
+      "opcode": "101010011",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "C"
+      ],
+      "description": "B \u2190 B \u2013 1; port(BC) \u2190 (HL); HL \u2190 HL \u00b1 1"
+    },
+    {
+      "mnemonic": "OUTD",
+      "opcode": "101001011",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "C"
+      ],
+      "description": "B \u2190 B \u2013 1; port(BC) \u2190 (HL); HL \u2190 HL \u00b1 1"
+    },
+    {
+      "mnemonic": "OTDR",
+      "opcode": "101011011",
+      "operand": [],
+      "flags_effected": [
+        "-",
+        "-",
+        "-",
+        "H",
+        "-",
+        "P/V",
+        "1",
+        "C"
+      ],
+      "description": "B \u2190 B \u2013 1; port(BC) \u2190 (HL); HL \u2190 HL \u00b1 1"
+    }
+  ]
+}

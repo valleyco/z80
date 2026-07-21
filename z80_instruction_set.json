@@ -1,0 +1,1183 @@
+{
+  "source": "https://en.wikipedia.org/wiki/Z80_instruction_set",
+  "title": "Z80 instruction set",
+  "summary": {
+    "description": "The Zilog Z80 is an 8-bit microprocessor introduced in 1976. The instruction set was designed to be upward binary compatible with the Intel 8080.",
+    "root_opcodes": 252,
+    "prefix_opcodes": {
+      "CB": "bit manipulation, shifts, and rotates",
+      "ED": "extended instructions (block transfer, I/O, 16-bit arithmetic)",
+      "DD": "IX register override (HL becomes IX; (HL) becomes (IX+d))",
+      "FD": "IY register override (HL becomes IY; (HL) becomes (IY+d))"
+    },
+    "instruction_types": 158,
+    "compatible_with_8080": true
+  },
+  "categories": [
+    "Load and exchange",
+    "Block transfer and search",
+    "Arithmetic and logical",
+    "Rotate and shift",
+    "Bit manipulation (set, reset, test)",
+    "Jump, call, and return",
+    "Input/output",
+    "CPU control"
+  ],
+  "encoding_order": [
+    "IX/IY override (DD or FD)",
+    "CB or ED prefix",
+    "(IX/IY + n) offset if CB",
+    "Opcode",
+    "(IX/IY + n) offset if no CB",
+    "data or address"
+  ],
+  "fields": {
+    "reg8": {
+      "000": "B",
+      "001": "C",
+      "010": "D",
+      "011": "E",
+      "100": "H",
+      "101": "L",
+      "110": "(HL)",
+      "111": "A"
+    },
+    "reg16": {
+      "00": "BC",
+      "01": "DE",
+      "10": "HL",
+      "11": "SP"
+    },
+    "reg16_push_pop": {
+      "00": "BC",
+      "01": "DE",
+      "10": "HL",
+      "11": "AF"
+    },
+    "condition": {
+      "000": "NZ",
+      "001": "Z",
+      "010": "NC",
+      "011": "C",
+      "100": "PO",
+      "101": "PE",
+      "110": "P",
+      "111": "M"
+    },
+    "condition_jr": {
+      "00": "NZ",
+      "01": "Z",
+      "10": "NC",
+      "11": "C"
+    },
+    "alu_op": {
+      "000": "ADD",
+      "001": "ADC",
+      "010": "SUB",
+      "011": "SBC",
+      "100": "AND",
+      "101": "XOR",
+      "110": "OR",
+      "111": "CP"
+    },
+    "rst_vector": {
+      "000": "0x00",
+      "001": "0x08",
+      "010": "0x10",
+      "011": "0x18",
+      "100": "0x20",
+      "101": "0x28",
+      "110": "0x30",
+      "111": "0x38"
+    },
+    "im_mode": {
+      "000": 0,
+      "010": 1,
+      "011": 2
+    }
+  },
+  "instructions": {
+    "root": [
+      {
+        "opcode_pattern": "00000000",
+        "mnemonic": "NOP",
+        "operands": [],
+        "description": "No operation",
+        "bytes": 1
+      },
+      {
+        "opcode_pattern": "000RP001",
+        "mnemonic": "LD {rp},{data}",
+        "operands": [
+          "rp",
+          "data"
+        ],
+        "description": "RP ← data",
+        "bytes": 3,
+        "fields": {
+          "rp": "reg16"
+        }
+      },
+      {
+        "opcode_pattern": "000RP010",
+        "mnemonic": "LD ({rp}),A",
+        "operands": [
+          "rp"
+        ],
+        "description": "(RP) ← A [BC or DE only]",
+        "bytes": 1,
+        "fields": {
+          "rp": "reg16",
+          "valid_rp": [
+            "BC",
+            "DE"
+          ]
+        }
+      },
+      {
+        "opcode_pattern": "000RP011",
+        "mnemonic": "INC {rp}",
+        "operands": [
+          "rp"
+        ],
+        "description": "RP ← RP + 1",
+        "bytes": 1,
+        "fields": {
+          "rp": "reg16"
+        }
+      },
+      {
+        "opcode_pattern": "000DDD100",
+        "mnemonic": "INC {ddd}",
+        "operands": [
+          "ddd"
+        ],
+        "description": "DDD ← DDD + 1",
+        "bytes": 1,
+        "fields": {
+          "ddd": "reg8"
+        }
+      },
+      {
+        "opcode_pattern": "000DDD101",
+        "mnemonic": "DEC {ddd}",
+        "operands": [
+          "ddd"
+        ],
+        "description": "DDD ← DDD - 1",
+        "bytes": 1,
+        "fields": {
+          "ddd": "reg8"
+        }
+      },
+      {
+        "opcode_pattern": "000DDD110",
+        "mnemonic": "LD {ddd},{data}",
+        "operands": [
+          "ddd",
+          "data"
+        ],
+        "description": "DDD ← data",
+        "bytes": 2,
+        "fields": {
+          "ddd": "reg8"
+        }
+      },
+      {
+        "opcode_pattern": "00000111",
+        "opcode_hex": "07",
+        "mnemonic": "RLCA",
+        "operands": [],
+        "description": "A1-7 ← A0-6; A0 ← Cy ← A7",
+        "bytes": 1
+      },
+      {
+        "opcode_pattern": "000RP1001",
+        "mnemonic": "ADD HL,{rp}",
+        "operands": [
+          "rp"
+        ],
+        "description": "HL ← HL + RP",
+        "bytes": 1,
+        "fields": {
+          "rp": "reg16"
+        }
+      },
+      {
+        "opcode_pattern": "000RP1010",
+        "mnemonic": "LD A,({rp})",
+        "operands": [
+          "rp"
+        ],
+        "description": "A ← (RP) [BC or DE only]",
+        "bytes": 1,
+        "fields": {
+          "rp": "reg16",
+          "valid_rp": [
+            "BC",
+            "DE"
+          ]
+        }
+      },
+      {
+        "opcode_pattern": "000RP1011",
+        "mnemonic": "DEC {rp}",
+        "operands": [
+          "rp"
+        ],
+        "description": "RP ← RP - 1",
+        "bytes": 1,
+        "fields": {
+          "rp": "reg16"
+        }
+      },
+      {
+        "opcode_pattern": "00001000",
+        "opcode_hex": "08",
+        "mnemonic": "EX AF,AF'",
+        "operands": [],
+        "description": "AF ↔ AF′",
+        "bytes": 1,
+        "is_z80_new": true
+      },
+      {
+        "opcode_pattern": "00001111",
+        "opcode_hex": "0F",
+        "mnemonic": "RRCA",
+        "operands": [],
+        "description": "A0-6 ← A1-7; A7 ← Cy ← A0",
+        "bytes": 1
+      },
+      {
+        "opcode_pattern": "00010000",
+        "opcode_hex": "10",
+        "mnemonic": "DJNZ {offset}",
+        "operands": [
+          "offset"
+        ],
+        "description": "B = B - 1; if B ≠ 0 then PC ← PC + offset",
+        "bytes": 2,
+        "is_z80_new": true
+      },
+      {
+        "opcode_pattern": "00010111",
+        "opcode_hex": "17",
+        "mnemonic": "RLA",
+        "operands": [],
+        "description": "A1-7 ← A0-6; Cy ← A7; A0 ← Cy",
+        "bytes": 1
+      },
+      {
+        "opcode_pattern": "00011000",
+        "opcode_hex": "18",
+        "mnemonic": "JR {offset}",
+        "operands": [
+          "offset"
+        ],
+        "description": "PC ← PC + offset",
+        "bytes": 2,
+        "is_z80_new": true
+      },
+      {
+        "opcode_pattern": "00011111",
+        "opcode_hex": "1F",
+        "mnemonic": "RRA",
+        "operands": [],
+        "description": "A0-6 ← A1-7; Cy ← A0; A7 ← Cy",
+        "bytes": 1
+      },
+      {
+        "opcode_pattern": "001CC000",
+        "mnemonic": "JR {cc},{offset}",
+        "operands": [
+          "cc",
+          "offset"
+        ],
+        "description": "If CC0-1 true, PC ← PC + offset (Only 2 bits of CC used: NZ, Z, NC, C)",
+        "bytes": 2,
+        "fields": {
+          "cc": "condition_jr"
+        },
+        "is_z80_new": true
+      },
+      {
+        "opcode_pattern": "00100010",
+        "opcode_hex": "22",
+        "mnemonic": "LD ({add}),HL",
+        "operands": [
+          "add"
+        ],
+        "description": "(add) ← HL",
+        "bytes": 3
+      },
+      {
+        "opcode_pattern": "00100111",
+        "opcode_hex": "27",
+        "mnemonic": "DAA",
+        "operands": [],
+        "description": "In N flag = 0 {If A0-3 > 9 OR AC = 1 then A ← A + 6; then if A4-7 > 9 OR Cy = 1 then A ← A + 0x60} else {do post-subtract DAA}",
+        "bytes": 1
+      },
+      {
+        "opcode_pattern": "00101010",
+        "opcode_hex": "2A",
+        "mnemonic": "LD HL,({add})",
+        "operands": [
+          "add"
+        ],
+        "description": "HL ← (add)",
+        "bytes": 3
+      },
+      {
+        "opcode_pattern": "00101111",
+        "opcode_hex": "2F",
+        "mnemonic": "CPL",
+        "operands": [],
+        "description": "A ← ¬A",
+        "bytes": 1
+      },
+      {
+        "opcode_pattern": "00110010",
+        "opcode_hex": "32",
+        "mnemonic": "LD ({add}),A",
+        "operands": [
+          "add"
+        ],
+        "description": "(add) ← A",
+        "bytes": 3
+      },
+      {
+        "opcode_pattern": "00110111",
+        "opcode_hex": "37",
+        "mnemonic": "SCF",
+        "operands": [],
+        "description": "Cy ← 1",
+        "bytes": 1
+      },
+      {
+        "opcode_pattern": "00111010",
+        "opcode_hex": "3A",
+        "mnemonic": "LD A,({add})",
+        "operands": [
+          "add"
+        ],
+        "description": "A ← (add)",
+        "bytes": 3
+      },
+      {
+        "opcode_pattern": "00111111",
+        "opcode_hex": "3F",
+        "mnemonic": "CCF",
+        "operands": [],
+        "description": "Cy ← ¬Cy",
+        "bytes": 1
+      },
+      {
+        "opcode_pattern": "01DDDSSS",
+        "mnemonic": "LD {ddd},{sss}",
+        "operands": [
+          "ddd",
+          "sss"
+        ],
+        "description": "DDD ← SSS",
+        "bytes": 1,
+        "fields": {
+          "ddd": "reg8",
+          "sss": "reg8"
+        }
+      },
+      {
+        "opcode_pattern": "01110110",
+        "opcode_hex": "76",
+        "mnemonic": "HALT",
+        "operands": [],
+        "description": "Halt",
+        "bytes": 1
+      },
+      {
+        "opcode_pattern": "10ALUSSS",
+        "mnemonic": "{alu} A,{sss}",
+        "operands": [
+          "alu",
+          "sss"
+        ],
+        "description": "A ← A [ALU operation] SSS",
+        "bytes": 1,
+        "fields": {
+          "alu": "alu_op",
+          "sss": "reg8"
+        }
+      },
+      {
+        "opcode_pattern": "11CC000",
+        "mnemonic": "RET {cc}",
+        "operands": [
+          "cc"
+        ],
+        "description": "If cc true, PC ← (SP), SP ← SP + 2",
+        "bytes": 1,
+        "fields": {
+          "cc": "condition"
+        }
+      },
+      {
+        "opcode_pattern": "11RP0001",
+        "mnemonic": "POP {rp}",
+        "operands": [
+          "rp"
+        ],
+        "description": "RP ← (SP), SP ← SP + 2",
+        "bytes": 1,
+        "fields": {
+          "rp": "reg16_push_pop"
+        }
+      },
+      {
+        "opcode_pattern": "11CC010",
+        "mnemonic": "JP {cc},{add}",
+        "operands": [
+          "cc",
+          "add"
+        ],
+        "description": "If cc true, PC ← add",
+        "bytes": 3,
+        "fields": {
+          "cc": "condition"
+        }
+      },
+      {
+        "opcode_pattern": "11000011",
+        "opcode_hex": "C3",
+        "mnemonic": "JP {add}",
+        "operands": [
+          "add"
+        ],
+        "description": "PC ← add",
+        "bytes": 3
+      },
+      {
+        "opcode_pattern": "11CC100",
+        "mnemonic": "CALL {cc},{add}",
+        "operands": [
+          "cc",
+          "add"
+        ],
+        "description": "If cc true, SP ← SP - 2, (SP) ← PC, PC ← add",
+        "bytes": 3,
+        "fields": {
+          "cc": "condition"
+        }
+      },
+      {
+        "opcode_pattern": "11RP0101",
+        "mnemonic": "PUSH {rp}",
+        "operands": [
+          "rp"
+        ],
+        "description": "SP ← SP - 2, (SP) ← RP",
+        "bytes": 1,
+        "fields": {
+          "rp": "reg16_push_pop"
+        }
+      },
+      {
+        "opcode_pattern": "11ALU110",
+        "mnemonic": "{alu} A,{data}",
+        "operands": [
+          "alu",
+          "data"
+        ],
+        "description": "A ← A [ALU operation] data",
+        "bytes": 2,
+        "fields": {
+          "alu": "alu_op"
+        }
+      },
+      {
+        "opcode_pattern": "11N111",
+        "mnemonic": "RST {n}",
+        "operands": [
+          "n"
+        ],
+        "description": "SP ← SP - 2, (SP) ← PC, PC ← N",
+        "bytes": 1,
+        "fields": {
+          "n": "rst_vector"
+        }
+      },
+      {
+        "opcode_pattern": "11001001",
+        "opcode_hex": "C9",
+        "mnemonic": "RET",
+        "operands": [],
+        "description": "PC ← (SP), SP ← SP + 2",
+        "bytes": 1
+      },
+      {
+        "opcode_pattern": "11001011",
+        "opcode_hex": "CB",
+        "mnemonic": "CB prefix",
+        "operands": [],
+        "description": "See CB prefix table",
+        "bytes": 1,
+        "prefix": "CB",
+        "is_z80_new": true
+      },
+      {
+        "opcode_pattern": "11001101",
+        "opcode_hex": "CD",
+        "mnemonic": "CALL {add}",
+        "operands": [
+          "add"
+        ],
+        "description": "SP ← SP - 2, (SP) ← PC, PC ← add",
+        "bytes": 3
+      },
+      {
+        "opcode_pattern": "11010011",
+        "opcode_hex": "D3",
+        "mnemonic": "OUT ({port}),A",
+        "operands": [
+          "port"
+        ],
+        "description": "Port(A:port) ← A",
+        "bytes": 2,
+        "notes": [
+          "16-bit port address: A forms upper byte, port immediate forms lower byte"
+        ]
+      },
+      {
+        "opcode_pattern": "11011001",
+        "opcode_hex": "D9",
+        "mnemonic": "EXX",
+        "operands": [],
+        "description": "BC ↔ BC′, DE ↔ DE′, HL ↔ HL′",
+        "bytes": 1,
+        "is_z80_new": true
+      },
+      {
+        "opcode_pattern": "11011011",
+        "opcode_hex": "DB",
+        "mnemonic": "IN A,({port})",
+        "operands": [
+          "port"
+        ],
+        "description": "A ← Port(A:port)",
+        "bytes": 2,
+        "notes": [
+          "16-bit port address: A forms upper byte, port immediate forms lower byte"
+        ]
+      },
+      {
+        "opcode_pattern": "11011101",
+        "opcode_hex": "DD",
+        "mnemonic": "IX override",
+        "operands": [],
+        "description": "HL becomes IX; (HL) becomes (IX + offset)",
+        "bytes": 1,
+        "prefix": "DD",
+        "is_z80_new": true
+      },
+      {
+        "opcode_pattern": "11100011",
+        "opcode_hex": "E3",
+        "mnemonic": "EX (SP),HL",
+        "operands": [],
+        "description": "(SP) ↔ HL",
+        "bytes": 1,
+        "is_z80_new": true
+      },
+      {
+        "opcode_pattern": "11101001",
+        "opcode_hex": "E9",
+        "mnemonic": "JP (HL)",
+        "operands": [],
+        "description": "PC ← HL",
+        "bytes": 1
+      },
+      {
+        "opcode_pattern": "11101011",
+        "opcode_hex": "EB",
+        "mnemonic": "EX DE,HL",
+        "operands": [],
+        "description": "HL ↔ DE",
+        "bytes": 1
+      },
+      {
+        "opcode_pattern": "11101101",
+        "opcode_hex": "ED",
+        "mnemonic": "ED prefix",
+        "operands": [],
+        "description": "See ED prefix table",
+        "bytes": 1,
+        "prefix": "ED",
+        "is_z80_new": true
+      },
+      {
+        "opcode_pattern": "11110011",
+        "opcode_hex": "F3",
+        "mnemonic": "DI",
+        "operands": [],
+        "description": "IFF1 ← IFF2 ← 0; Disable interrupts",
+        "bytes": 1,
+        "is_z80_new": true
+      },
+      {
+        "opcode_pattern": "11111001",
+        "opcode_hex": "F9",
+        "mnemonic": "LD SP,HL",
+        "operands": [],
+        "description": "SP ← HL",
+        "bytes": 1
+      },
+      {
+        "opcode_pattern": "11111011",
+        "opcode_hex": "FB",
+        "mnemonic": "EI",
+        "operands": [],
+        "description": "IFF1 ← IFF2 ← 1; Enable interrupts",
+        "bytes": 1,
+        "is_z80_new": true
+      },
+      {
+        "opcode_pattern": "11111101",
+        "opcode_hex": "FD",
+        "mnemonic": "IY override",
+        "operands": [],
+        "description": "HL becomes IY; (HL) becomes (IY + offset)",
+        "bytes": 1,
+        "prefix": "FD",
+        "is_z80_new": true
+      }
+    ],
+    "ed": [
+      {
+        "opcode_pattern": "010DDD000",
+        "prefix": "ED",
+        "mnemonic": "IN {ddd},(C)",
+        "operands": [
+          "ddd"
+        ],
+        "description": "DDD ← port(BC) [Except (HL)] (Port number is 16 bits)",
+        "bytes": 2,
+        "fields": {
+          "ddd": "reg8",
+          "invalid_ddd": [
+            "(HL)"
+          ]
+        },
+        "notes": [
+          "Input byte sets the flags unlike IN A,n"
+        ]
+      },
+      {
+        "opcode_pattern": "010SSS001",
+        "prefix": "ED",
+        "mnemonic": "OUT (C),{sss}",
+        "operands": [
+          "sss"
+        ],
+        "description": "port(BC) ← SSS [Except (HL)] (Port number is 16 bits)",
+        "bytes": 2,
+        "fields": {
+          "sss": "reg8",
+          "invalid_sss": [
+            "(HL)"
+          ]
+        }
+      },
+      {
+        "opcode_pattern": "010RP0100",
+        "prefix": "ED",
+        "mnemonic": "SBC HL,{ss}",
+        "operands": [
+          "ss"
+        ],
+        "description": "HL ← HL – ss – CY",
+        "bytes": 2,
+        "fields": {
+          "ss": "reg16"
+        }
+      },
+      {
+        "opcode_pattern": "010RP0111",
+        "prefix": "ED",
+        "mnemonic": "LD ({add}),{ss}",
+        "operands": [
+          "add",
+          "ss"
+        ],
+        "description": "(add) ← RP",
+        "bytes": 4,
+        "fields": {
+          "ss": "reg16"
+        }
+      },
+      {
+        "opcode_pattern": "010000100",
+        "prefix": "ED",
+        "opcode_hex": "ED44",
+        "mnemonic": "NEG",
+        "operands": [],
+        "description": "A ← 0 - A",
+        "bytes": 2
+      },
+      {
+        "opcode_pattern": "010000101",
+        "prefix": "ED",
+        "opcode_hex": "ED45",
+        "mnemonic": "RETN",
+        "operands": [],
+        "description": "PC ← (SP); SP ← SP + 2; IFF1 ← IFF2",
+        "bytes": 2,
+        "notes": [
+          "RETN and RETI are identical and restore IFF1"
+        ]
+      },
+      {
+        "opcode_pattern": "010NN110",
+        "prefix": "ED",
+        "mnemonic": "IM {n}",
+        "operands": [
+          "n"
+        ],
+        "description": "Interrupt mode 0, 1, 2 (encoded 0, 2, 3)",
+        "bytes": 2,
+        "fields": {
+          "n": "im_mode"
+        }
+      },
+      {
+        "opcode_pattern": "010001111",
+        "prefix": "ED",
+        "opcode_hex": "ED47",
+        "mnemonic": "LD I,A",
+        "operands": [],
+        "description": "interrupt control vector ← A",
+        "bytes": 2
+      },
+      {
+        "opcode_pattern": "010RP1100",
+        "prefix": "ED",
+        "mnemonic": "ADC HL,{ss}",
+        "operands": [
+          "ss"
+        ],
+        "description": "HL ← HL + ss + CY",
+        "bytes": 2,
+        "fields": {
+          "ss": "reg16"
+        }
+      },
+      {
+        "opcode_pattern": "010RP1101",
+        "prefix": "ED",
+        "mnemonic": "LD {dd},({add})",
+        "operands": [
+          "dd",
+          "add"
+        ],
+        "description": "RP ← (add)",
+        "bytes": 4,
+        "fields": {
+          "dd": "reg16"
+        }
+      },
+      {
+        "opcode_pattern": "010011010",
+        "prefix": "ED",
+        "opcode_hex": "ED4D",
+        "mnemonic": "RETI",
+        "operands": [],
+        "description": "PC ← (SP); SP ← SP + 2; IFF1 ← IFF2",
+        "bytes": 2,
+        "notes": [
+          "Z80 compatible interrupt devices watch for RETI by sniffing 0xED followed by 0x4D on the data bus"
+        ]
+      },
+      {
+        "opcode_pattern": "010011011",
+        "prefix": "ED",
+        "opcode_hex": "ED4F",
+        "mnemonic": "LD R,A",
+        "operands": [],
+        "description": "refresh ← A",
+        "bytes": 2
+      },
+      {
+        "opcode_pattern": "010101111",
+        "prefix": "ED",
+        "opcode_hex": "ED57",
+        "mnemonic": "LD A,I",
+        "operands": [],
+        "description": "A ← interrupt control vector",
+        "bytes": 2,
+        "notes": [
+          "Sets flags; IFF2 loaded into P/V flag; C unaffected"
+        ]
+      },
+      {
+        "opcode_pattern": "010111111",
+        "prefix": "ED",
+        "opcode_hex": "ED5F",
+        "mnemonic": "LD A,R",
+        "operands": [],
+        "description": "A ← refresh",
+        "bytes": 2,
+        "notes": [
+          "Sets flags; IFF2 loaded into P/V flag; C unaffected"
+        ]
+      },
+      {
+        "opcode_pattern": "011001111",
+        "prefix": "ED",
+        "opcode_hex": "ED67",
+        "mnemonic": "RRD",
+        "operands": [],
+        "description": "A0-3 ← (HL)0-3; (HL)7-4 ← A0-3; (HL)0-3 ← (HL)7-4",
+        "bytes": 2
+      },
+      {
+        "opcode_pattern": "011011111",
+        "prefix": "ED",
+        "opcode_hex": "ED6F",
+        "mnemonic": "RLD",
+        "operands": [],
+        "description": "A0-3 ← (HL)7-4; (HL)0-3 ← A0-3; (HL)7-4 ← (HL)0-3",
+        "bytes": 2
+      },
+      {
+        "opcode_pattern": "1010RD000",
+        "prefix": "ED",
+        "mnemonic": "LDI / LDIR / LDD / LDDR",
+        "operands": [
+          "R",
+          "D"
+        ],
+        "description": "(DE) ← (HL); HL ← HL ± 1; DE ← DE ± 1; BC ← BC - 1",
+        "bytes": 2,
+        "variants": {
+          "LDI": {
+            "R": 0,
+            "D": 0,
+            "opcode_hex": "EDA0"
+          },
+          "LDIR": {
+            "R": 1,
+            "D": 0,
+            "opcode_hex": "EDB0"
+          },
+          "LDD": {
+            "R": 0,
+            "D": 1,
+            "opcode_hex": "EDA8"
+          },
+          "LDDR": {
+            "R": 1,
+            "D": 1,
+            "opcode_hex": "EDB8"
+          }
+        },
+        "notes": [
+          "When D = 1, pointers HL and DE decrement",
+          "When R = 1, operation repeats until BC = 0",
+          "LDI and LDD set P/V if BC – 1 ≠ 0"
+        ]
+      },
+      {
+        "opcode_pattern": "1010RD001",
+        "prefix": "ED",
+        "mnemonic": "CPI / CPIR / CPD / CPDR",
+        "operands": [
+          "R",
+          "D"
+        ],
+        "description": "A - (HL); HL ← HL ± 1; BC ← BC - 1",
+        "bytes": 2,
+        "variants": {
+          "CPI": {
+            "R": 0,
+            "D": 0,
+            "opcode_hex": "EDA1"
+          },
+          "CPIR": {
+            "R": 1,
+            "D": 0,
+            "opcode_hex": "EDB1"
+          },
+          "CPD": {
+            "R": 0,
+            "D": 1,
+            "opcode_hex": "EDA9"
+          },
+          "CPDR": {
+            "R": 1,
+            "D": 1,
+            "opcode_hex": "EDB9"
+          }
+        },
+        "notes": [
+          "When D = 1, pointer HL decrements",
+          "When R = 1, operation repeats until BC = 0",
+          "CPIR/CPDR terminate early if A = (HL)"
+        ]
+      },
+      {
+        "opcode_pattern": "1010RD010",
+        "prefix": "ED",
+        "mnemonic": "INI / INIR / IND / INDR",
+        "operands": [
+          "R",
+          "D"
+        ],
+        "description": "(HL) ← port(BC); HL ← HL ± 1; B ← B – 1",
+        "bytes": 2,
+        "variants": {
+          "INI": {
+            "R": 0,
+            "D": 0,
+            "opcode_hex": "EDA2"
+          },
+          "INIR": {
+            "R": 1,
+            "D": 0,
+            "opcode_hex": "EDB2"
+          },
+          "IND": {
+            "R": 0,
+            "D": 1,
+            "opcode_hex": "EDAA"
+          },
+          "INDR": {
+            "R": 1,
+            "D": 1,
+            "opcode_hex": "EDBA"
+          }
+        },
+        "notes": [
+          "All block I/O instructions use BC, not just C, as the port address"
+        ]
+      },
+      {
+        "opcode_pattern": "1010RD011",
+        "prefix": "ED",
+        "mnemonic": "OUTI / OTIR / OUTD / OTDR",
+        "operands": [
+          "R",
+          "D"
+        ],
+        "description": "B ← B – 1; port(BC) ← (HL); HL ← HL ± 1",
+        "bytes": 2,
+        "variants": {
+          "OUTI": {
+            "R": 0,
+            "D": 0,
+            "opcode_hex": "EDA3"
+          },
+          "OTIR": {
+            "R": 1,
+            "D": 0,
+            "opcode_hex": "EDB3"
+          },
+          "OUTD": {
+            "R": 0,
+            "D": 1,
+            "opcode_hex": "EDAB"
+          },
+          "OTDR": {
+            "R": 1,
+            "D": 1,
+            "opcode_hex": "EDBB"
+          }
+        },
+        "notes": [
+          "B is decremented before the I/O access (differs from Zilog documentation)",
+          "All block I/O instructions use BC, not just C, as the port address"
+        ]
+      }
+    ],
+    "cb": [
+      {
+        "opcode_pattern": "00000SSS",
+        "prefix": "CB",
+        "mnemonic": "RLC {r}",
+        "operands": [
+          "r"
+        ],
+        "description": "R1-7 ← R0-6; R0 ← Cy ← R7",
+        "bytes": 2,
+        "fields": {
+          "r": "reg8"
+        }
+      },
+      {
+        "opcode_pattern": "00001SSS",
+        "prefix": "CB",
+        "mnemonic": "RRC {r}",
+        "operands": [
+          "r"
+        ],
+        "description": "R0-6 ← R1-7; R7 ← Cy ← R0",
+        "bytes": 2,
+        "fields": {
+          "r": "reg8"
+        }
+      },
+      {
+        "opcode_pattern": "00010SSS",
+        "prefix": "CB",
+        "mnemonic": "RL {r}",
+        "operands": [
+          "r"
+        ],
+        "description": "R1-7 ← R0-6; Cy ← R7; R0 ← Cy",
+        "bytes": 2,
+        "fields": {
+          "r": "reg8"
+        }
+      },
+      {
+        "opcode_pattern": "00011SSS",
+        "prefix": "CB",
+        "mnemonic": "RR {r}",
+        "operands": [
+          "r"
+        ],
+        "description": "R0-6 ← R1-7; Cy ← R0; R7 ← Cy",
+        "bytes": 2,
+        "fields": {
+          "r": "reg8"
+        }
+      },
+      {
+        "opcode_pattern": "00100SSS",
+        "prefix": "CB",
+        "mnemonic": "SLA {r}",
+        "operands": [
+          "r"
+        ],
+        "description": "Cy ← R7; R1-7 ← R0-6; R0 ← 0",
+        "bytes": 2,
+        "fields": {
+          "r": "reg8"
+        }
+      },
+      {
+        "opcode_pattern": "00101SSS",
+        "prefix": "CB",
+        "mnemonic": "SRA {r}",
+        "operands": [
+          "r"
+        ],
+        "description": "Cy ← R0; R0-6 ← R1-7",
+        "bytes": 2,
+        "fields": {
+          "r": "reg8"
+        }
+      },
+      {
+        "opcode_pattern": "00111SSS",
+        "prefix": "CB",
+        "mnemonic": "SRL {r}",
+        "operands": [
+          "r"
+        ],
+        "description": "Cy ← R0; R0-6 ← R1-7; R7 ← 0",
+        "bytes": 2,
+        "fields": {
+          "r": "reg8"
+        }
+      },
+      {
+        "opcode_pattern": "01BBBSSS",
+        "prefix": "CB",
+        "mnemonic": "BIT {b},{r}",
+        "operands": [
+          "b",
+          "r"
+        ],
+        "description": "R ∧ (1 << b)",
+        "bytes": 2,
+        "fields": {
+          "r": "reg8",
+          "b": {
+            "min": 0,
+            "max": 7
+          }
+        }
+      },
+      {
+        "opcode_pattern": "10BBBSSS",
+        "prefix": "CB",
+        "mnemonic": "RES {b},{r}",
+        "operands": [
+          "b",
+          "r"
+        ],
+        "description": "R ← R ∧ ¬(1 << b)",
+        "bytes": 2,
+        "fields": {
+          "r": "reg8",
+          "b": {
+            "min": 0,
+            "max": 7
+          }
+        }
+      },
+      {
+        "opcode_pattern": "11BBBSSS",
+        "prefix": "CB",
+        "mnemonic": "SET {b},{r}",
+        "operands": [
+          "b",
+          "r"
+        ],
+        "description": "R ← R ∨ (1 << b)",
+        "bytes": 2,
+        "fields": {
+          "r": "reg8",
+          "b": {
+            "min": 0,
+            "max": 7
+          }
+        }
+      }
+    ]
+  },
+  "ix_iy_overrides": {
+    "DD": {
+      "name": "IX override",
+      "effect": "HL becomes IX; (HL) becomes (IX + displacement)"
+    },
+    "FD": {
+      "name": "IY override",
+      "effect": "HL becomes IY; (HL) becomes (IY + displacement)"
+    },
+    "undocumented": {
+      "description": "Every opcode that manipulates HL is equally valid for the 8-bit halves of IX (IXH, IXL) and IY (IYH, IYL) when preceded by DD or FD, with exceptions for instructions using both HL and IX/IY in the same operation (e.g. LD H,(IX+d))",
+      "example": "DD 26 n encodes LD IXH,n instead of LD H,n"
+    }
+  },
+  "instruction_synonyms": [
+    {
+      "description": "Z80 orthogonal LD RP,(nn) and LD (nn),RP vs 8080 LD HL,(nn) and LD (nn),HL",
+      "note": "Assembler may substitute 8080 version to save a byte and four clocks"
+    },
+    {
+      "description": "CB-prefixed RL A, RR A, RLC A, RRC A, SLA A vs root RLA, RRA, RLCA, RRCA, ADD A,A",
+      "note": "8080 versions are one byte smaller and twice as fast"
+    },
+    {
+      "description": "JR vs JP unconditional jump",
+      "note": "JR is 2 bytes; JP is 3 bytes but 2 clocks faster"
+    },
+    {
+      "description": "JR cc vs JP cc conditional jumps",
+      "note": "JR forms are 2 clocks slower when taken but 3 clocks faster when not taken"
+    },
+    {
+      "description": "DJNZ vs 8080 equivalent loop",
+      "note": "DJNZ is half the size and one clock faster"
+    }
+  ]
+}
