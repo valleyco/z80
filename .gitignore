@@ -1,2 +1,5 @@
 .vscode/
 *.o
+*.dSYM/
+**/test_pilot.dSYM/
+tests/test_pilot
