@@ -1,27 +1,26 @@
-# Z80 M-cycle simulator (V1)
+# Z80 / Kaypro emulator monorepo
 
-C11 M-cycle-accurate Z80 core for CPM-class machines. See [docs/z80_m_cycle_simulator_design.md](docs/z80_m_cycle_simulator_design.md).
+- **`z80/`** — M-cycle Z80 CPU library (`libz80.a`)
+- **`emu/`** — generic port-device framework
+- **`kaypro/`** — Kaypro 4/84 CP/M machine emulator
 
-## Build / test
+## Build
 
 ```bash
-python3 tools/gen_z80_core.py   # regenerate src/generated/
-make test                       # build + run pilot tests
+make            # libz80 + kaypro_run
+make test       # CPU instruction tests (56 asm vectors)
+make kaypro     # kaypro executable only
 ```
 
-## Layout
+## Run Kaypro (requires ROM + disk images)
 
-| Path | Role |
-|------|------|
-| `src/z80.h` | Public API + CPU state |
-| `src/z80_cpu.c` | Phase loop (M1 / CB / ED / DISP / EXEC) |
-| `src/z80_regs.c` | Registers, flags, bind helpers |
-| `src/z80_base.c` / `z80_cb.c` / `z80_ed.c` | Hand-written M-handlers |
-| `src/generated/` | Decode tables, family enum, dispatch (generator only) |
-| `tools/gen_z80_core.py` | Generator from `z80_simple*.json` |
+Paths are relative to your current working directory. Fetch assets first, then run from the repo root:
 
-## Public API
+```bash
+bash tools/fetch_kaypro_assets.sh
+./kaypro/kaypro_run \
+  --rom kaypro/assets/81-478a.rom \
+  --disk-a kaypro/assets/kaypro1.dsk
+```
 
-- `z80_init` / `z80_reset`
-- `z80_step_m` — one M-cycle (no-op while halted)
-- `z80_run_m` — N M-cycles
+See [kaypro/README.md](kaypro/README.md) for more run examples, and [z80/README.md](z80/README.md) for CPU core details.

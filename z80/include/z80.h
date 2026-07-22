@@ -79,12 +79,25 @@ typedef struct z80 {
   bool block_repeat; /* ED block ops */
   uint8_t bit;       /* CB bit index */
   uint8_t opcode;    /* last opcode byte (for field re-extract if needed) */
+
+  /* optional instruction-fetch guard (hi==0 → disabled) */
+  uint16_t fetch_guard_lo;
+  uint16_t fetch_guard_hi;
+  bool fetch_trap;
+  uint16_t fetch_trap_pc;
 } z80_t;
 
 void z80_init(z80_t *cpu, z80_bus_t bus);
 void z80_reset(z80_t *cpu);
 void z80_step_m(z80_t *cpu);
 void z80_run_m(z80_t *cpu, unsigned n);
+
+void z80_set_fetch_guard(z80_t *cpu, uint16_t lo, uint16_t hi);
+bool z80_fetch_trap(const z80_t *cpu);
+uint16_t z80_fetch_trap_pc(const z80_t *cpu);
+
+void z80_nmi(z80_t *cpu);
+void z80_irq_im1(z80_t *cpu);
 
 #ifdef __cplusplus
 }

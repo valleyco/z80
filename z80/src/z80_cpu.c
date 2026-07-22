@@ -28,12 +28,43 @@ void z80_reset(z80_t *cpu) {
   cpu->m_index = 0;
   cpu->m_count = 0;
   cpu->block_repeat = false;
+  cpu->fetch_guard_lo = 0;
+  cpu->fetch_guard_hi = 0;
+  cpu->fetch_trap = false;
+  cpu->fetch_trap_pc = 0;
 }
+
+void z80_set_fetch_guard(z80_t *cpu, uint16_t lo, uint16_t hi) {
+  cpu->fetch_guard_lo = lo;
+  cpu->fetch_guard_hi = hi;
+}
+
+bool z80_fetch_trap(const z80_t *cpu) { return cpu->fetch_trap; }
+
+uint16_t z80_fetch_trap_pc(const z80_t *cpu) { return cpu->fetch_trap_pc; }
 
 static void bump_r(z80_t *cpu) {
   /* V1: approximate refresh — increment low 7 bits */
   uint8_t r7 = (uint8_t)(cpu->r & 0x80);
   cpu->r = (uint8_t)(r7 | (((cpu->r + 1) & 0x7F)));
+}
+
+static bool fetch_guard_violation(z80_t *cpu, uint16_t pc) {
+  if (cpu->fetch_guard_hi == 0) return false;
+  if (pc >= cpu->fetch_guard_lo && pc < cpu->fetch_guard_hi) return false;
+  cpu->fetch_trap = true;
+  cpu->fetch_trap_pc = pc;
+  cpu->halted = true;
+  return true;
+}
+
+static uint8_t fetch_opcode(z80_t *cpu) {
+  uint16_t pc = cpu->pc;
+  if (fetch_guard_violation(cpu, pc)) return 0;
+  uint8_t opcode = z80_mem_rd(cpu, pc);
+  cpu->pc = (uint16_t)(pc + 1);
+  bump_r(cpu);
+  return opcode;
 }
 
 static bool op_needs_disp(const z80_t *cpu, const z80_decode_ent *ent) {
@@ -123,8 +154,8 @@ static void decode_and_enter(z80_t *cpu, const z80_decode_ent *ent, uint8_t opco
 }
 
 static void phase_m1(z80_t *cpu) {
-  uint8_t opcode = z80_mem_rd(cpu, cpu->pc++);
-  bump_r(cpu);
+  uint8_t opcode = fetch_opcode(cpu);
+  if (cpu->fetch_trap) return;
 
   if (cpu->index == Z80_IDX_NONE) {
     const z80_decode_ent *ent = &z80_decode_root[opcode];
@@ -184,8 +215,8 @@ static void phase_m1(z80_t *cpu) {
 }
 
 static void phase_m1_cb(z80_t *cpu) {
-  uint8_t opcode = z80_mem_rd(cpu, cpu->pc++);
-  bump_r(cpu);
+  uint8_t opcode = fetch_opcode(cpu);
+  if (cpu->fetch_trap) return;
   const z80_decode_ent *ent = &z80_decode_cb[opcode];
   z80_bind_from_decode(cpu, ent, opcode);
   /* Indexed CB: (HL) means (IX/IY+d); disp already read */
@@ -198,8 +229,8 @@ static void phase_m1_cb(z80_t *cpu) {
 }
 
 static void phase_m1_ed(z80_t *cpu) {
-  uint8_t opcode = z80_mem_rd(cpu, cpu->pc++);
-  bump_r(cpu);
+  uint8_t opcode = fetch_opcode(cpu);
+  if (cpu->fetch_trap) return;
   const z80_decode_ent *ent = &z80_decode_ed[opcode];
   decode_and_enter(cpu, ent, opcode);
 }
@@ -247,4 +278,30 @@ void z80_step_m(z80_t *cpu) {
 
 void z80_run_m(z80_t *cpu, unsigned n) {
   while (n-- > 0 && !cpu->halted) z80_step_m(cpu);
+}
+
+static void z80_push16(z80_t *cpu, uint16_t v) {
+  cpu->sp = (uint16_t)(cpu->sp - 1);
+  z80_mem_wr(cpu, cpu->sp, (uint8_t)(v >> 8));
+  cpu->sp = (uint16_t)(cpu->sp - 1);
+  z80_mem_wr(cpu, cpu->sp, (uint8_t)(v & 0xFF));
+}
+
+void z80_nmi(z80_t *cpu) {
+  cpu->halted = false;
+  cpu->iff1 = 0;
+  z80_push16(cpu, cpu->pc);
+  cpu->pc = 0x0066;
+  cpu->phase = Z80_PH_M1;
+  cpu->m_index = 0;
+}
+
+void z80_irq_im1(z80_t *cpu) {
+  if (!cpu->iff1) return;
+  cpu->halted = false;
+  cpu->iff1 = cpu->iff2 = 0;
+  z80_push16(cpu, cpu->pc);
+  cpu->pc = 0x0038;
+  cpu->phase = Z80_PH_M1;
+  cpu->m_index = 0;
 }

@@ -323,7 +323,8 @@ void z80_bind_from_decode(z80_t *cpu, const z80_decode_ent *ent, uint8_t opcode)
     cpu->dst = op_reg8((uint8_t)((opcode >> 3) & 7));
     break;
   case Z80_BIND_ED_SSS:
-    cpu->src = op_reg8((uint8_t)(opcode & 7));
+    /* OUT (C),sss encodes SSS in bits 5–3 (same field position as IN's DDD) */
+    cpu->src = op_reg8((uint8_t)((opcode >> 3) & 7));
     break;
   case Z80_BIND_ED_RP:
     cpu->dst = (z80_opnd_t){Z80_OP_REG16, (uint8_t)((opcode >> 4) & 3)};
@@ -352,7 +353,10 @@ void z80_bind_from_decode(z80_t *cpu, const z80_decode_ent *ent, uint8_t opcode)
     /* finalized after offset read in EXEC */
   } else if (cpu->family == FAM_RET_CC) {
     cpu->m_count = cpu->cond_true ? 3 : 1;
-  } else if (cpu->family == FAM_JP_CC || cpu->family == FAM_CALL_CC) {
+  } else if (cpu->family == FAM_JP_CC) {
+    /* Always fetch both address bytes (taken or not). */
+    cpu->m_count = 3;
+  } else if (cpu->family == FAM_CALL_CC) {
     /* address still fetched; call skips push if false */
   }
 }

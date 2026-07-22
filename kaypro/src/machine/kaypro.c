@@ -1,0 +1,119 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "kaypro.h"
+#include "kaypro_internal.h"
+#include "crt6845.h"
+#include "fdc1793.h"
+#include "keyboard.h"
+#include "sio.h"
+#include "sysport.h"
+
+kaypro_t *kaypro_create(void) {
+  kaypro_t *m = (kaypro_t *)calloc(1, sizeof(kaypro_t));
+  if (!m) return NULL;
+
+  kaypro_mem_init(m);
+  m->bank1 = true;
+
+  m->fdc = kaypro_fdc_create();
+  m->sio = kaypro_sio_create();
+  m->sysport = kaypro_sysport_create(m, m->fdc);
+  m->keyboard = kaypro_keyboard_create(m->sio);
+  m->crt = kaypro_crt_create();
+
+  if (!m->fdc || !m->sio || !m->sysport || !m->keyboard || !m->crt) {
+    kaypro_destroy(m);
+    return NULL;
+  }
+
+  kaypro_add_device(m, &m->fdc->emu);
+  kaypro_add_device(m, &m->sio->emu);
+  kaypro_add_device(m, &m->sysport->emu);
+  kaypro_add_device(m, &m->keyboard->emu);
+  kaypro_add_device(m, &m->crt->emu);
+  kaypro_register_ports(m);
+
+  z80_bus_t bus = {
+      .mem_read = kaypro_bus_mem_read,
+      .mem_write = kaypro_bus_mem_write,
+      .io_read = kaypro_bus_io_read,
+      .io_write = kaypro_bus_io_write,
+      .bus_ctx = m,
+  };
+  z80_init(&m->cpu, bus);
+  kaypro_reset(m);
+  return m;
+}
+
+void kaypro_destroy(kaypro_t *m) {
+  if (!m) return;
+  for (int i = 0; i < m->device_count; i++) {
+    EmuDevice *dev = m->devices[i];
+    if (dev && dev->destroy) dev->destroy(dev);
+  }
+  free(m->devices);
+  free(m);
+}
+
+bool kaypro_load_rom(kaypro_t *m, const char *path) {
+  FILE *f = fopen(path, "rb");
+  if (!f) return false;
+  size_t n = fread(m->rom, 1, KAYPRO_ROM_SIZE, f);
+  fclose(f);
+  return n > 0;
+}
+
+bool kaypro_attach_disk(kaypro_t *m, int drive, const char *path) {
+  return kaypro_fdc_attach(m->fdc, drive, path);
+}
+
+void kaypro_reset(kaypro_t *m) {
+  for (int i = 0; i < m->device_count; i++) {
+    EmuDevice *dev = m->devices[i];
+    if (dev && dev->reset) dev->reset(dev);
+  }
+  m->needs_nmi = false;
+  z80_reset(&m->cpu);
+  m->bank1 = true;
+  kaypro_sysport_sync_bank(m->sysport);
+}
+
+void kaypro_step(kaypro_t *m, unsigned m_cycles) {
+  for (int i = 0; i < m->device_count; i++) {
+    EmuDevice *dev = m->devices[i];
+    if (dev && dev->poll) dev->poll(dev);
+  }
+
+  z80_run_m(&m->cpu, m_cycles);
+
+  /* FDC DRQ/INTRQ are delivered as NMI while the ROM is HALTed. */
+  for (int guard = 0; guard < 2048; guard++) {
+    if (kaypro_fdc_needs_nmi(m->fdc)) m->needs_nmi = true;
+    if (!m->cpu.halted || !m->needs_nmi) break;
+    z80_nmi(&m->cpu);
+    m->needs_nmi = false;
+    kaypro_fdc_clear_nmi(m->fdc);
+    z80_run_m(&m->cpu, 32);
+  }
+}
+
+void kaypro_run(kaypro_t *m) {
+  while (!m->cpu.halted) {
+    kaypro_step(m, 1000);
+  }
+}
+
+void kaypro_set_trace_io(kaypro_t *m, bool enable) { m->trace_io = enable; }
+
+uint8_t kaypro_mem_read(kaypro_t *m, uint16_t addr) {
+  return kaypro_bus_mem_read(m, addr);
+}
+
+void kaypro_set_bank1(kaypro_t *m, bool bank1) {
+  m->bank1 = bank1;
+  kaypro_sysport_set_latch(m->sysport,
+                           (uint8_t)((kaypro_sysport_latch(m->sysport) & 0x7F) |
+                                     (bank1 ? 0x80 : 0)));
+}

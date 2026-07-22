@@ -1,5 +1,14 @@
 .vscode/
 *.o
+*.a
 *.dSYM/
-**/test_pilot.dSYM/
-tests/test_pilot
+**/__pycache__
+z80/tests/test_pilot
+z80/tests/test_runner
+z80/tests/test.bin
+z80/tests/test.lst
+kaypro/kaypro_run
+kaypro/tests/smoke_test
+kaypro/tests/smoke_test_runner
+kaypro/assets/
+tools/.cache/

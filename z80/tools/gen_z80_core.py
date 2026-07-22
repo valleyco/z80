@@ -307,6 +307,7 @@ FAMILY_M_EXTRA = {
     "FAM_DJNZ": 1,
     "FAM_LD_RP_NN": 2,
     "FAM_JP_NN": 2,
+    "FAM_JP_CC": 2,
     "FAM_ALU_A_N": 2,
     "FAM_IN_A_N": 2,
     "FAM_OUT_N_A": 2,
