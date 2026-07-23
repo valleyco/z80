@@ -416,6 +416,67 @@ ld_sp_hl_test:
         ld      sp,hl
         halt
 
+; @test ld_ihl_n
+; @init hl=4000h
+; @expect_mem 4000h=5Ah
+ld_ihl_n_test:
+        ld      (hl),5Ah
+        halt
+
+; @test ld_ihl_r
+; @init hl=4000h bc=B200h
+; @expect_mem 4000h=B2h
+ld_ihl_r_test:
+        ld      (hl),b
+        halt
+
+; @test inc_ihl
+; @init hl=4000h
+; @mem 4000h=10h
+; @expect_mem 4000h=11h
+inc_ihl_test:
+        inc     (hl)
+        halt
+
+; @test dec_ihl
+; @init hl=4000h
+; @mem 4000h=10h
+; @expect_mem 4000h=0Fh
+dec_ihl_test:
+        dec     (hl)
+        halt
+
+; @test alu_a_ihl
+; @init af=1000h hl=4000h
+; @mem 4000h=22h
+; @expect a=32h
+alu_a_ihl_test:
+        add     a,(hl)
+        halt
+
+; @test dd_ld_ixd_n
+; @init ix=3000h
+; @expect_mem 3005h=A5h
+dd_ld_ixd_n_test:
+        ld      (ix+5),0A5h
+        halt
+
+; @test dd_ld_h_ixd
+; @init ix=4000h hl=0000h
+; @mem 4001h=12h 4000h=34h
+; @expect hl=1234h ix=4000h
+dd_ld_h_ixd_test:
+        ld      h,(ix+1)
+        ld      l,(ix+0)
+        halt
+
+; @test dd_ld_ixd_h
+; @init ix=4000h hl=A1B2h
+; @expect_mem 4003h=A1h
+dd_ld_ixd_h_test:
+        ld      (ix+3),h
+        halt
+
 ; @test add_hl_rp
 ; @init hl=1000h bc=0234h
 ; @expect hl=1234h
@@ -435,4 +496,450 @@ ret_cc_help:
 ret_cc_main:
         call    ret_cc_help
         ld      a,99h
+        halt
+
+; ---- broader instruction coverage ----
+
+; @test adc_a_n
+; @init af=1001h
+; @expect a=31h flag.c=0
+adc_a_n_test:
+        adc     a,20h
+        halt
+
+; @test sbc_a_r
+; @init af=3001h bc=1000h
+; @expect a=1Fh flag.n=1
+sbc_a_r_test:
+        sbc     a,b
+        halt
+
+; @test add_a_n
+; @init af=F000h
+; @expect a=10h flag.c=1
+add_a_n_test:
+        add     a,20h
+        halt
+
+; @test rrca
+; @init af=0100h
+; @expect a=80h flag.c=1
+rrca_test:
+        rrca
+        halt
+
+; @test rla
+; @init af=8001h
+; @expect a=01h flag.c=1
+rla_test:
+        rla
+        halt
+
+; @test rra
+; @init af=0100h
+; @expect a=00h flag.c=1
+rra_test:
+        rra
+        halt
+
+; @test ld_a_inn
+; @mem 4000h=A5h
+; @expect a=A5h
+ld_a_inn_test:
+        ld      a,(4000h)
+        halt
+
+; @test ld_inn_a
+; @init af=5A00h
+; @expect_mem 4000h=5Ah
+ld_inn_a_test:
+        ld      (4000h),a
+        halt
+
+; @test ld_a_ibc
+; @init bc=4000h
+; @mem 4000h=C3h
+; @expect a=C3h
+ld_a_ibc_test:
+        ld      a,(bc)
+        halt
+
+; @test ld_ide_a
+; @init de=4000h af=B100h
+; @expect_mem 4000h=B1h
+ld_ide_a_test:
+        ld      (de),a
+        halt
+
+; @test in_a_n
+; @io 55h=77h
+; @expect a=77h
+in_a_n_test:
+        in      a,(55h)
+        halt
+
+; @test out_n_a
+; @init af=9900h
+; @io 55h=00h
+; @expect a=99h
+out_n_a_test:
+        out     (55h),a
+        in      a,(55h)
+        halt
+
+; @test ex_af_af
+; @init af=1111h af_=2222h
+; @expect af=2222h
+ex_af_af_test:
+        ex      af,af'
+        halt
+
+; @test jp_cc_taken
+; @init af=0040h
+; @expect a=42h
+jp_cc_taken_test:
+        jp      z,jp_cc_yes
+        ld      a,00h
+        jr      jp_cc_taken_end
+jp_cc_yes:
+        ld      a,42h
+jp_cc_taken_end:
+        halt
+
+; @test jp_cc_not_taken
+; @init af=0000h
+; @expect a=01h
+jp_cc_not_taken_test:
+        jp      z,jp_cc_no
+        ld      a,01h
+        jr      jp_cc_nt_end
+jp_cc_no:
+        ld      a,FFh
+jp_cc_nt_end:
+        halt
+
+; @test call_cc_taken
+; @init sp=8000h af=0040h
+; @expect a=77h
+call_cc_taken_test:
+        jr      call_cc_main
+call_cc_sub:
+        ld      a,77h
+        ret
+call_cc_main:
+        call    z,call_cc_sub
+        halt
+
+; @test call_cc_not_taken
+; @init sp=8000h af=0000h
+; @expect a=01h
+call_cc_not_taken_test:
+        jr      call_cc_nt_main
+call_cc_skip:
+        ld      a,FFh
+        ret
+call_cc_nt_main:
+        call    z,call_cc_skip
+        ld      a,01h
+        halt
+
+; @test cb_rrc
+; @init bc=0100h
+; @expect bc=8000h flag.c=1
+cb_rrc_test:
+        rrc     b
+        halt
+
+; @test cb_rl
+; @init bc=8000h af=0001h
+; @expect bc=0100h flag.c=1
+cb_rl_test:
+        rl      b
+        halt
+
+; @test cb_rr
+; @init bc=0100h af=0000h
+; @expect bc=0000h flag.c=1
+cb_rr_test:
+        rr      b
+        halt
+
+; @test cb_sla
+; @init bc=4000h
+; @expect bc=8000h flag.c=0
+cb_sla_test:
+        sla     b
+        halt
+
+; @test cb_sra
+; @init bc=8000h
+; @expect bc=C000h flag.c=0
+cb_sra_test:
+        sra     b
+        halt
+
+; @test cb_res
+; @init bc=FF00h
+; @expect bc=7F00h
+cb_res_test:
+        res     7,b
+        halt
+
+; @test lddr
+; @init hl=1001h de=2001h bc=0002h sp=8000h
+; @mem 1000h=11h 1001h=22h
+; @expect bc=0000h
+; @expect_mem 2000h=11h 2001h=22h
+lddr_test:
+        lddr
+        halt
+
+; @test cpir
+; @init af=5500h hl=1000h bc=0003h sp=8000h
+; @mem 1000h=11h 1001h=55h 1002h=22h
+; @expect hl=1002h bc=0001h flag.z=1
+cpir_test:
+        cpir
+        halt
+
+; @test ed_retn
+; @init sp=8000h iff1=0 iff2=1
+; @expect iff1=1
+ed_retn_test:
+        ld      hl,ed_retn_halt
+        push    hl
+        retn
+ed_retn_halt:
+        halt
+
+; @test ed_reti
+; @init sp=8000h iff1=0 iff2=1
+; @expect iff1=1 a=33h
+ed_reti_test:
+        ld      hl,ed_reti_cont
+        push    hl
+        reti
+ed_reti_cont:
+        ld      a,33h
+        halt
+
+; @test ed_im2
+; @expect im=2
+ed_im2_test:
+        im      2
+        halt
+
+; @test ed_im0
+; @expect im=0
+ed_im0_test:
+        im      1
+        im      0
+        halt
+
+; @test ld_i_a
+; @init af=AB00h
+; @expect i=ABh
+ld_i_a_test:
+        ld      i,a
+        halt
+
+; @test ld_a_i
+; @init i=5Ch af=0000h iff2=1
+; @expect a=5Ch flag.pv=1
+ld_a_i_test:
+        ld      a,i
+        halt
+
+; @test add_ix_rp
+; @init ix=1000h bc=0234h
+; @expect ix=1234h
+add_ix_rp_test:
+        add     ix,bc
+        halt
+
+; @test add_iy_rp
+; @init iy=2000h de=0100h
+; @expect iy=2100h
+add_iy_rp_test:
+        add     iy,de
+        halt
+
+; @test push_pop_ix
+; @init sp=8000h ix=1234h
+; @expect ix=1234h sp=8000h
+push_pop_ix_test:
+        push    ix
+        ld      ix,0000h
+        pop     ix
+        halt
+
+; @test jp_ix
+; @expect a=88h
+jp_ix_test:
+        ld      ix,jp_ix_target
+        jp      (ix)
+        nop
+jp_ix_target:
+        ld      a,88h
+        halt
+
+; @test ld_sp_ix
+; @init ix=9000h
+; @expect sp=9000h
+ld_sp_ix_test:
+        ld      sp,ix
+        halt
+
+; @test inc_ixd
+; @init ix=3000h
+; @mem 3004h=10h
+; @expect_mem 3004h=11h
+inc_ixd_test:
+        inc     (ix+4)
+        halt
+
+; @test dec_iyd
+; @init iy=3000h
+; @mem 3006h=10h
+; @expect_mem 3006h=0Fh
+dec_iyd_test:
+        dec     (iy+6)
+        halt
+
+; @test alu_a_ixd
+; @init af=1000h ix=3000h
+; @mem 3002h=05h
+; @expect a=15h
+alu_a_ixd_test:
+        add     a,(ix+2)
+        halt
+
+; @test ld_ixd_r
+; @init ix=3000h bc=C200h
+; @expect_mem 3007h=C2h
+ld_ixd_r_test:
+        ld      (ix+7),b
+        halt
+
+; @test inc_rp
+; @init bc=FFFFh
+; @expect bc=0000h
+inc_rp_test:
+        inc     bc
+        halt
+
+; @test dec_r
+; @init bc=0000h
+; @expect bc=FF00h flag.z=0 flag.n=1
+dec_r_test:
+        dec     b
+        halt
+
+; @test rst_08
+; @init sp=8000h
+; @expect trap=1
+rst_08_test:
+        rst     08h
+        halt
+
+; @test cpl_scf
+; @init af=AA00h
+; @expect a=55h flag.c=1 flag.n=0
+cpl_scf_test:
+        cpl
+        scf
+        halt
+
+; @test ed_ld_sp_inn
+; @init sp=0000h
+; @mem 4000h=00h 4001h=80h
+; @expect sp=8000h
+ed_ld_sp_inn_test:
+        ld      sp,(4000h)
+        halt
+
+; @test ed_ld_inn_hl
+; @init hl=BEEFh
+; @expect_mem 5000h=EFh 5001h=BEh
+ed_ld_inn_hl_test:
+        ld      (5000h),hl
+        halt
+
+; @test sbc_a_ihl
+; @init af=5001h hl=4000h
+; @mem 4000h=10h
+; @expect a=3Fh flag.n=1
+sbc_a_ihl_test:
+        sbc     a,(hl)
+        halt
+
+; @test and_a_n
+; @init af=F500h
+; @expect a=05h flag.z=0 flag.h=1
+and_a_n_test:
+        and     0Fh
+        halt
+
+; @test xor_a_n
+; @init af=FF00h
+; @expect a=00h flag.z=1
+xor_a_n_test:
+        xor     0FFh
+        halt
+
+; @test or_a_n
+; @init af=0F00h
+; @expect a=FFh
+or_a_n_test:
+        or      0F0h
+        halt
+
+; @test cp_a_r
+; @init af=2000h bc=2000h
+; @expect a=20h flag.z=1 flag.n=1
+cp_a_r_test:
+        cp      b
+        halt
+
+; @test dd_cb_res
+; @init ix=3000h
+; @mem 3001h=FFh
+; @expect_mem 3001h=FEh
+dd_cb_res_test:
+        res     0,(ix+1)
+        halt
+
+; @test dd_cb_set
+; @init ix=3000h
+; @mem 3001h=00h
+; @expect_mem 3001h=80h
+dd_cb_set_test:
+        set     7,(ix+1)
+        halt
+
+; @test fd_push_pop_iy
+; @init sp=8000h iy=ABCDh
+; @expect iy=ABCDh sp=8000h
+fd_push_pop_iy_test:
+        push    iy
+        ld      iy,0000h
+        pop     iy
+        halt
+
+; @test copy_block_like
+; @init hl=2000h de=1000h bc=000Fh
+; @mem 1000h=A0h 1001h=A1h 1002h=A2h 100Fh=AFh
+; @expect_mem 2000h=A0h 2001h=A1h 2002h=A2h
+; @expect c=00h
+copy_block_like_test:
+        inc     c
+copy_block_like_loop:
+        dec     c
+        jr      z,copy_block_like_done
+        ld      a,(de)
+        ld      (hl),a
+        inc     de
+        inc     hl
+        jr      copy_block_like_loop
+copy_block_like_done:
         halt

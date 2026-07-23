@@ -291,7 +291,9 @@ void z80_bind_from_decode(z80_t *cpu, const z80_decode_ent *ent, uint8_t opcode)
     cpu->src = cpu->dst;
     break;
   case Z80_BIND_RP_BCDE:
+    /* LD A,(BC/DE) and LD (BC/DE),A — bind both so handlers may use src or dst */
     cpu->dst = (z80_opnd_t){Z80_OP_REG16, (uint8_t)((opcode >> 4) & 1)}; /* BC or DE only */
+    cpu->src = cpu->dst;
     break;
   case Z80_BIND_R8_DDD:
     cpu->dst = op_reg8((uint8_t)((opcode >> 3) & 7));
@@ -349,6 +351,9 @@ void z80_bind_from_decode(z80_t *cpu, const z80_decode_ent *ent, uint8_t opcode)
     cpu->m_count = (cpu->src.kind == Z80_OP_MEM_HL) ? 2 : 1;
   } else if (cpu->family == FAM_INC_R || cpu->family == FAM_DEC_R) {
     cpu->m_count = (cpu->dst.kind == Z80_OP_MEM_HL) ? 3 : 1;
+  } else if (cpu->family == FAM_LD_R_N) {
+    /* LD r,n is 2M; LD (HL),n needs a third M to store. */
+    cpu->m_count = (cpu->dst.kind == Z80_OP_MEM_HL) ? 3 : 2;
   } else if (cpu->family == FAM_JR_CC || cpu->family == FAM_DJNZ) {
     /* finalized after offset read in EXEC */
   } else if (cpu->family == FAM_RET_CC) {

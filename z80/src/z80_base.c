@@ -78,25 +78,38 @@ void z80_m_ld_r_r(z80_t *cpu) {
   const bool src_mem = z80_op_is_mem(&cpu->src);
 
   if (!dst_mem && !src_mem) {
+    /* Both register operands: DD/FD remaps H/L to IXH/IXL (undocumented). */
     z80_set_r8(cpu, z80_op_reg(&cpu->dst), z80_get_r8(cpu, z80_op_reg(&cpu->src)));
     z80_finish(cpu);
     return;
   }
 
-  /* Memory operand: one post-M1 cycle does the bus transfer */
+  /*
+   * When one operand is (HL)/(IX+d)/(IY+d), the other H/L is the real H/L —
+   * not IXH/IXL. (Same rule as real Z80: DD 66 d = LD H,(IX+d) writes H.)
+   */
+  const z80_index_t saved_index = cpu->index;
+  if (dst_mem || src_mem)
+    cpu->index = Z80_IDX_NONE;
+
   if (src_mem) {
+    cpu->index = saved_index; /* EA uses IX/IY+d */
     cpu->tmp8 = z80_mem_rd(cpu, z80_ea_hl_idx(cpu));
     if (!dst_mem) {
+      cpu->index = Z80_IDX_NONE;
       z80_set_r8(cpu, z80_op_reg(&cpu->dst), cpu->tmp8);
     } else {
       z80_mem_wr(cpu, z80_ea_hl_idx(cpu), cpu->tmp8); /* LD (HL),(HL) — rare */
     }
+    cpu->index = saved_index;
     z80_finish(cpu);
     return;
   }
 
-  /* dst mem, src reg */
+  /* dst mem, src reg — read real H/L, write via IX/IY+d */
+  cpu->index = Z80_IDX_NONE;
   cpu->tmp8 = z80_get_r8(cpu, z80_op_reg(&cpu->src));
+  cpu->index = saved_index;
   z80_mem_wr(cpu, z80_ea_hl_idx(cpu), cpu->tmp8);
   z80_finish(cpu);
 }

@@ -363,6 +363,7 @@ static void z80_ed_ret(z80_t *cpu) {
     break;
   case 3:
     cpu->pc = (uint16_t)(cpu->tmp16 | ((uint16_t)z80_mem_rd(cpu, cpu->sp++) << 8));
+    cpu->iff1 = cpu->iff2;
     z80_ed_finish(cpu);
     break;
   default:
@@ -372,23 +373,12 @@ static void z80_ed_ret(z80_t *cpu) {
 }
 
 void z80_m_ed_reti(z80_t *cpu) {
-  /* V1: same as RET (no interrupt nest tracking) */
+  /* RETI/RETN both restore IFF1 ← IFF2 (V1 has no interrupt nest tracking). */
   z80_ed_ret(cpu);
 }
 
 void z80_m_ed_retn(z80_t *cpu) {
-  if (cpu->m_index == 1 || cpu->m_index == 2) {
-    cpu->tmp16 = (uint16_t)z80_mem_rd(cpu, cpu->sp++);
-    z80_ed_advance(cpu);
-    return;
-  }
-  if (cpu->m_index == 3) {
-    cpu->pc = (uint16_t)(cpu->tmp16 | ((uint16_t)z80_mem_rd(cpu, cpu->sp++) << 8));
-    cpu->iff1 = cpu->iff2;
-    z80_ed_finish(cpu);
-    return;
-  }
-  z80_ed_finish(cpu);
+  z80_ed_ret(cpu);
 }
 
 void z80_m_ed_rld(z80_t *cpu) {
