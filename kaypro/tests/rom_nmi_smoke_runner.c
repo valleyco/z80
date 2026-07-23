@@ -32,7 +32,7 @@ int main(void) {
   kaypro_t *m = kaypro_create();
   assert(m);
   assert(kaypro_load_rom(m, ROM_NMI_SMOKE_PATH));
-  assert(kaypro_attach_disk(m, 0, "assets/kaypro1.dsk"));
+  assert(kaypro_attach_disk(m, 0, "assets/images/dsdd/kaypro1.dsk"));
 
   z80_set_fetch_guard(&m->cpu, 0x0000, (uint16_t)rom_size);
   kaypro_reset(m);

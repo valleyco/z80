@@ -35,7 +35,9 @@ Download the Universal ROM and CP/M disk (from repo root):
 bash tools/fetch_kaypro_assets.sh
 ```
 
-That places `81-478a.rom` and `kaypro1.dsk` under `assets/`.
+That places ROMs under `assets/rom/`, TD0s under `assets/td0/`, and raw
+images under `assets/images/{ssdd,dsdd}/` (SS disks are also rewritten to
+DSDD via cpmtools for Universal CP/M).
 
 ## Run
 
@@ -43,13 +45,13 @@ Paths are relative to your current working directory:
 
 ```bash
 # from repo root
-./kaypro/kaypro_run --rom kaypro/assets/81-478a.rom --disk-a kaypro/assets/kaypro1.dsk
+./kaypro/kaypro_run --rom kaypro/assets/rom/81-478a.rom --disk-a kaypro/assets/images/dsdd/kaypro1.dsk
 
 # from kaypro/ directory
-./kaypro_run --rom assets/81-478a.rom --disk-a assets/kaypro1.dsk
+./kaypro_run --rom assets/rom/81-478a.rom --disk-a assets/images/dsdd/kaypro1.dsk
 
 # log IN/OUT during bring-up
-./kaypro_run --rom assets/81-478a.rom --disk-a assets/kaypro1.dsk --trace
+./kaypro_run --rom assets/rom/81-478a.rom --disk-a assets/images/dsdd/kaypro1.dsk --trace
 ```
 
 ### Keyboard (POSIX host)
@@ -58,6 +60,10 @@ Paths are relative to your current working directory:
 |-----|--------|
 | `Ctrl+C` | Sent to CP/M as `0x03` (does **not** quit the emulator) |
 | `Ctrl+\` | Quit the emulator and restore the terminal |
+
+At the MBASIC `Ok` prompt, `Ctrl+C` only echoes as `^C` — it does not break
+or quit. Type a command such as `PRINT 1` and press Return. Use DSDD images
+under `assets/images/dsdd/` (SS disks like `kii-mbas` must be converted).
 
 
 ## Layout

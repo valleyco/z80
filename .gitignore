@@ -20,6 +20,7 @@ kaypro/tests/rom_smoke.bin
 kaypro/tests/rom_smoke.lst
 kaypro/tests/rom_nmi_smoke.bin
 kaypro/tests/rom_nmi_smoke.lst
+# Fetched / generated Kaypro media (rom/, td0/, zip/, images/, MANIFEST, legacy flat files)
 kaypro/assets/
 tools/.cache/
 tools/td0_to_dsk/td0_to_dsk

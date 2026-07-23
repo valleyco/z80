@@ -59,7 +59,7 @@ int main(void) {
 
   kaypro_t *m = kaypro_create();
   assert(m);
-  assert(kaypro_attach_disk(m, 0, "assets/kaypro1.dsk"));
+  assert(kaypro_attach_disk(m, 0, "assets/images/dsdd/kaypro1.dsk"));
 
   /* Drive A select (active low), side 0, motor on, double density, bank1. */
   write_port(m, PORT_SYSPORT, 0xB6);
