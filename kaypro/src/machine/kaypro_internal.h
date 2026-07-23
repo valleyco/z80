@@ -15,6 +15,7 @@ typedef struct kaypro_sio kaypro_sio_t;
 typedef struct kaypro_fdc kaypro_fdc_t;
 typedef struct kaypro_keyboard kaypro_keyboard_t;
 typedef struct kaypro_crt kaypro_crt_t;
+typedef struct kaypro_hdc kaypro_hdc_t;
 
 typedef struct kaypro {
   z80_t cpu;
@@ -33,6 +34,7 @@ typedef struct kaypro {
   kaypro_fdc_t *fdc;
   kaypro_keyboard_t *keyboard;
   kaypro_crt_t *crt;
+  kaypro_hdc_t *hdc;
 } kaypro_t;
 
 void kaypro_mem_init(kaypro_t *m);

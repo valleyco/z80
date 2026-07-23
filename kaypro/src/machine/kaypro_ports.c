@@ -4,6 +4,7 @@
 #include "kaypro_internal.h"
 #include "crt6845.h"
 #include "fdc1793.h"
+#include "hdc_wd1002.h"
 #include "keyboard.h"
 #include "sio.h"
 #include "sysport.h"
@@ -22,18 +23,21 @@ void kaypro_add_device(kaypro_t *m, EmuDevice *dev) {
 
 void kaypro_register_ports(kaypro_t *m) {
   port_bus_init(&m->port_bus);
-  /* Universal board map (urmtkit1): SIO 04-07, FDC 10-13, bitport 14, CRT 1C-1F. */
+  /* Universal board map (urmtkit1): SIO 04-07, FDC 10-13, bitport 14, CRT 1C-1F,
+   * WD1002-HD0 80-87. */
   port_bus_register(&m->port_bus, &m->sio->emu.port, 0x04);
   port_bus_register(&m->port_bus, &m->fdc->emu.port, 0x10);
   port_bus_register(&m->port_bus, &m->sysport->emu.port, 0x14);
   port_bus_register(&m->port_bus, &m->crt->emu.port, 0x1C);
+  port_bus_register(&m->port_bus, &m->hdc->emu.port, 0x80);
 }
 
 uint8_t kaypro_bus_io_read(void *ctx, uint16_t port) {
   kaypro_t *m = (kaypro_t *)ctx;
   uint8_t v = port_bus_read(&m->port_bus, port);
   if (m->trace_io) {
-    fprintf(stderr, "IN  %04X -> %02X\n", port, v);
+    fprintf(stderr, "PC=%04X IN  %02X (%04X) -> %02X\n", m->cpu.pc,
+            (unsigned)(port & 0xFF), port, v);
   }
   return v;
 }
@@ -41,7 +45,8 @@ uint8_t kaypro_bus_io_read(void *ctx, uint16_t port) {
 void kaypro_bus_io_write(void *ctx, uint16_t port, uint8_t v) {
   kaypro_t *m = (kaypro_t *)ctx;
   if (m->trace_io) {
-    fprintf(stderr, "OUT %04X <- %02X\n", port, v);
+    fprintf(stderr, "PC=%04X OUT %02X (%04X) <- %02X\n", m->cpu.pc,
+            (unsigned)(port & 0xFF), port, v);
   }
   /* Baud rate latches (not on FDC). */
   uint8_t p = (uint8_t)(port & 0xFF);

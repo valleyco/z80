@@ -6,6 +6,7 @@
 #include "kaypro_internal.h"
 #include "crt6845.h"
 #include "fdc1793.h"
+#include "hdc_wd1002.h"
 #include "keyboard.h"
 #include "sio.h"
 #include "sysport.h"
@@ -22,8 +23,9 @@ kaypro_t *kaypro_create(void) {
   m->sysport = kaypro_sysport_create(m, m->fdc);
   m->keyboard = kaypro_keyboard_create(m->sio);
   m->crt = kaypro_crt_create();
+  m->hdc = kaypro_hdc_create();
 
-  if (!m->fdc || !m->sio || !m->sysport || !m->keyboard || !m->crt) {
+  if (!m->fdc || !m->sio || !m->sysport || !m->keyboard || !m->crt || !m->hdc) {
     kaypro_destroy(m);
     return NULL;
   }
@@ -33,6 +35,7 @@ kaypro_t *kaypro_create(void) {
   kaypro_add_device(m, &m->sysport->emu);
   kaypro_add_device(m, &m->keyboard->emu);
   kaypro_add_device(m, &m->crt->emu);
+  kaypro_add_device(m, &m->hdc->emu);
   kaypro_register_ports(m);
 
   z80_bus_t bus = {
@@ -116,4 +119,18 @@ void kaypro_set_bank1(kaypro_t *m, bool bank1) {
   kaypro_sysport_set_latch(m->sysport,
                            (uint8_t)((kaypro_sysport_latch(m->sysport) & 0x7F) |
                                      (bank1 ? 0x80 : 0)));
+}
+
+bool kaypro_halted(const kaypro_t *m) { return m->cpu.halted; }
+
+uint16_t kaypro_pc(const kaypro_t *m) { return m->cpu.pc; }
+
+bool kaypro_fetch_trap_hit(const kaypro_t *m) { return z80_fetch_trap(&m->cpu); }
+
+uint16_t kaypro_fetch_trap_addr(const kaypro_t *m) {
+  return z80_fetch_trap_pc(&m->cpu);
+}
+
+uint8_t kaypro_sysport_state(const kaypro_t *m) {
+  return kaypro_sysport_latch(m->sysport);
 }

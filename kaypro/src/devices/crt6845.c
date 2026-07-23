@@ -5,6 +5,8 @@
 
 #include "crt6845.h"
 
+#define CRT_TX_CAP 256
+
 typedef struct {
   EmuDevice emu;
   uint8_t reg_sel;
@@ -12,7 +14,13 @@ typedef struct {
   uint16_t mem_addr;
   bool attr_plane;
   bool last_graph;
+  uint8_t tx[CRT_TX_CAP];
+  unsigned tx_count;
 } crt_impl_t;
+
+static void crt_tx_push(crt_impl_t *crt, uint8_t c) {
+  if (crt->tx_count < CRT_TX_CAP) crt->tx[crt->tx_count++] = c;
+}
 
 static int crt_read_status(void *dev, int port) {
   (void)dev;
@@ -70,18 +78,21 @@ static void crt_echo(crt_impl_t *crt, uint8_t c) {
   if (crt->attr_plane) return;
 
   if (c == 0x0D) {
+    crt_tx_push(crt, '\n');
     putchar('\n');
     fflush(stdout);
     crt->last_graph = false;
     return;
   }
   if (c == 0x0A) {
+    crt_tx_push(crt, '\n');
     putchar('\n');
     fflush(stdout);
     crt->last_graph = false;
     return;
   }
   if (c == 0x08) {
+    crt_tx_push(crt, 0x08);
     fputs("\b \b", stdout);
     fflush(stdout);
     crt->last_graph = false;
@@ -92,6 +103,7 @@ static void crt_echo(crt_impl_t *crt, uint8_t c) {
   if (c == 0x20) {
     /* Suppress clear-screen space floods; keep inter-word spaces. */
     if (crt->last_graph) {
+      crt_tx_push(crt, ' ');
       putchar(' ');
       fflush(stdout);
       crt->last_graph = false;
@@ -100,6 +112,7 @@ static void crt_echo(crt_impl_t *crt, uint8_t c) {
   }
 
   if (c >= 0x21 && c < 0x7F) {
+    crt_tx_push(crt, c);
     putchar((char)c);
     fflush(stdout);
     crt->last_graph = true;
@@ -120,6 +133,7 @@ static void crt_reset(EmuDevice *dev) {
   crt->mem_addr = 0;
   crt->attr_plane = false;
   crt->last_graph = false;
+  crt->tx_count = 0;
 }
 
 static void crt_destroy(EmuDevice *dev) { free(dev->ctx); }
@@ -128,6 +142,20 @@ static int (*crt_reads[])(void *, int) = {
     crt_read_status, crt_read_regdata, crt_read_unused, crt_read_data};
 static void (*crt_writes[])(void *, int, int) = {
     crt_write_cmd, crt_write_regdata, crt_write_unused, crt_write_data};
+
+unsigned kaypro_crt_tx_count(const kaypro_crt_t *crt) {
+  return ((const crt_impl_t *)crt)->tx_count;
+}
+
+uint8_t kaypro_crt_tx_at(const kaypro_crt_t *crt, unsigned index) {
+  const crt_impl_t *impl = (const crt_impl_t *)crt;
+  if (index >= impl->tx_count) return 0;
+  return impl->tx[index];
+}
+
+void kaypro_crt_tx_clear(kaypro_crt_t *crt) {
+  ((crt_impl_t *)crt)->tx_count = 0;
+}
 
 kaypro_crt_t *kaypro_crt_create(void) {
   crt_impl_t *crt = (crt_impl_t *)calloc(1, sizeof(crt_impl_t));

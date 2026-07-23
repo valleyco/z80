@@ -40,11 +40,18 @@ Paths are relative to your current working directory:
 | Path | Role |
 |------|------|
 | `src/machine/` | Kaypro wiring, memory map, port registration |
-| `src/devices/` | sysport, SIO, FDC1793, keyboard |
+| `src/devices/` | sysport, SIO, FDC1793, keyboard, CRT (SY6545), HDC stub |
 | `src/main.c` | CLI entry point |
 | `tests/smoke_test.c` | Bank-1 ROM read regression |
+| `tests/crt_smoke_test.c` | SY6545 port ready/regs/char echo |
+| `tests/hdc_smoke_test.c` | WD1002 absent-controller fail-fast |
 
 ## Status
 
-Phase 1 skeleton: memory banking, port dispatch, simplified FDC/SIO, NMI on HALT.
-CRT (6845) deferred to phase 2.
+Phase 1: memory banking, port dispatch, FDC/SIO, NMI on HALT, CRT echo
+(Universal 1Ch-1Fh), and a WD1002-HD0 stub at 80h-87h that fails `winrest`
+so ROM falls back to floppies.
+
+Universal ROM boots CP/M from a 40×2×10×512 `.dsk` and reaches the `A0>`
+prompt. Console echo follows CRT data-port writes (cursor moves are not
+translated to host newlines).

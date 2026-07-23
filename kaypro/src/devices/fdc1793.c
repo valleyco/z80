@@ -11,6 +11,12 @@
 #define FDC_TRACK0 0x04
 #define FDC_NOT_READY 0x80
 
+/* Kaypro DSDD: 10 x 512-byte sectors/side (IDs 0-9 / 10-19). */
+#define KAYPRO_TRACKS 40
+#define KAYPRO_SIDES 2
+#define KAYPRO_SPT 10
+#define KAYPRO_SSIZE 512
+
 typedef struct {
   uint8_t *data;
   size_t size;
@@ -32,6 +38,7 @@ typedef struct {
   bool drq;
   bool busy;
   bool needs_nmi;
+  bool type1_status; /* Type I bits (index/track0) valid after type-I / FI */
   uint8_t sector_buf[512];
   unsigned sector_idx;
   unsigned transfer_len; /* bytes in current DRQ transfer (sector or ID) */
@@ -80,15 +87,23 @@ static size_t fdc_sector_offset(const fdc_impl_t *fdc) {
   unsigned track = fdc->track;
   unsigned side = fdc->side;
   unsigned sector = fdc->sector;
-  if (sector == 0) sector = 1;
-  if (sector > 9) sector = 9;
-  if (track > 39) track = 39;
-  return ((size_t)track * 2 + side) * 9 * 512 + (sector - 1) * 512;
+  unsigned phys;
+  /* Side 0: IDs 0-9; side 1: IDs 10-19 (GETBUF dset2 adds 10). */
+  if (sector >= 10)
+    phys = sector - 10;
+  else
+    phys = sector;
+  if (phys >= KAYPRO_SPT) phys = KAYPRO_SPT - 1;
+  if (track >= KAYPRO_TRACKS) track = KAYPRO_TRACKS - 1;
+  if (side >= KAYPRO_SIDES) side = KAYPRO_SIDES - 1;
+  return ((size_t)track * KAYPRO_SIDES + side) * KAYPRO_SPT * KAYPRO_SSIZE +
+         phys * KAYPRO_SSIZE;
 }
 
 static void fdc_finish_type1(fdc_impl_t *fdc) {
   fdc->busy = false;
   fdc->drq = false;
+  fdc->type1_status = true;
   fdc->status = 0;
   if (fdc->track == 0) fdc->status |= FDC_TRACK0;
   if (!fdc_drive_ready(fdc)) fdc->status |= FDC_NOT_READY;
@@ -97,15 +112,19 @@ static void fdc_finish_type1(fdc_impl_t *fdc) {
 
 static void fdc_begin_read_address(fdc_impl_t *fdc) {
   /* WD1793 Read Address: 6-byte ID field. */
+  uint8_t id_sec = fdc->sector;
+  if (fdc->side == 1 && id_sec < 10)
+    id_sec = (uint8_t)(id_sec + 10);
   fdc->sector_buf[0] = fdc->track;
   fdc->sector_buf[1] = fdc->side;
-  fdc->sector_buf[2] = fdc->sector ? fdc->sector : 1;
+  fdc->sector_buf[2] = id_sec;
   fdc->sector_buf[3] = 2; /* 512-byte sectors */
   fdc->sector_buf[4] = 0;
   fdc->sector_buf[5] = 0;
   fdc->sector_idx = 0;
   fdc->transfer_len = 6;
   fdc->write_mode = false;
+  fdc->type1_status = false;
   fdc->busy = true;
   fdc->drq = true;
   fdc->status = FDC_BUSY | FDC_DRQ;
@@ -114,6 +133,7 @@ static void fdc_begin_read_address(fdc_impl_t *fdc) {
 
 static void fdc_begin_read_sector(fdc_impl_t *fdc) {
   fdc_disk_t *disk = &fdc->drives[fdc->selected_drive];
+  fdc->type1_status = false;
   if (!disk->data) {
     fdc->busy = false;
     fdc->drq = false;
@@ -140,6 +160,7 @@ static void fdc_begin_read_sector(fdc_impl_t *fdc) {
 }
 
 static void fdc_begin_write_sector(fdc_impl_t *fdc) {
+  fdc->type1_status = false;
   if (!fdc_drive_ready(fdc)) {
     fdc->busy = false;
     fdc->drq = false;
@@ -166,16 +187,22 @@ static void fdc_finish_write_sector(fdc_impl_t *fdc) {
   }
   fdc->drq = false;
   fdc->busy = false;
+  fdc->type1_status = false;
   fdc->status = 0;
-  if (fdc->track == 0) fdc->status |= FDC_TRACK0;
+  if (!fdc_drive_ready(fdc)) fdc->status |= FDC_NOT_READY;
   fdc->needs_nmi = true;
 }
 
 static void fdc_finish_read_sector(fdc_impl_t *fdc) {
   fdc->drq = false;
   fdc->busy = false;
+  fdc->type1_status = false;
   fdc->status = 0;
-  if (fdc->track == 0) fdc->status |= FDC_TRACK0;
+  if (!fdc_drive_ready(fdc)) fdc->status |= FDC_NOT_READY;
+  /* WD1793: Read Address copies track ID into the sector register. */
+  if ((fdc->command & 0xF0) == 0xC0) {
+    fdc->sector = fdc->sector_buf[0];
+  }
   fdc->needs_nmi = true;
 }
 
@@ -186,10 +213,15 @@ static int fdc_read_status(void *dev, int port) {
   if (fdc->busy) st |= FDC_BUSY;
   if (fdc->drq) st |= FDC_DRQ;
   if (!fdc->busy) {
-    /* Type I: index pulse toggles when idle. */
-    if ((fdc->index_phase & 0x20) != 0) st |= FDC_INDEX;
-    if (fdc->track == 0) st |= FDC_TRACK0;
     if (!fdc_drive_ready(fdc)) st |= FDC_NOT_READY;
+    /* Index / Track0 are Type I bits. fstat uses Force Interrupt to sample
+     * them; do not expose them after Type II/III completions or Read Address
+     * looks like a nonzero error (TRACK0|INDEX == 06h). */
+    if (fdc->type1_status) {
+      fdc->index_phase++;
+      if ((fdc->index_phase & 0x20) != 0) st |= FDC_INDEX;
+      if (fdc->track == 0) st |= FDC_TRACK0;
+    }
   }
   return st;
 }
@@ -267,11 +299,13 @@ static void fdc_write_cmd(void *dev, int port, int value) {
   case 0xC0: /* Read address */
     fdc_begin_read_address(fdc);
     break;
-  case 0xD0: /* Force interrupt */
+  case 0xD0: /* Force interrupt — presents Type I status (fstat). */
     fdc->busy = false;
     fdc->drq = false;
+    fdc->type1_status = true;
     fdc->status = 0;
     if (fdc->track == 0) fdc->status |= FDC_TRACK0;
+    if (!fdc_drive_ready(fdc)) fdc->status |= FDC_NOT_READY;
     fdc->needs_nmi = true;
     break;
   default:
@@ -336,6 +370,7 @@ static void fdc_reset(EmuDevice *dev) {
   fdc->track = fdc->sector = fdc->side = 0;
   fdc->status = 0;
   fdc->drq = fdc->busy = fdc->needs_nmi = false;
+  fdc->type1_status = true;
   fdc->sector_idx = 0;
   fdc->transfer_len = 512;
   fdc->write_mode = false;

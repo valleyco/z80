@@ -1,4 +1,5 @@
 CC = gcc
+ASM = asmx
 CFLAGS = -std=c11 -Wall -Wextra -Werror -O0 -g \
 	-Iinclude \
 	-I../emu \
@@ -20,12 +21,25 @@ DEVICE_SRC = \
 	src/devices/sio.c \
 	src/devices/fdc1793.c \
 	src/devices/keyboard.c \
-	src/devices/crt6845.c
+	src/devices/crt6845.c \
+	src/devices/hdc_wd1002.c
 
 MAIN_SRC = src/main.c
 SMOKE_SRC = tests/smoke_test.c
+FDC_SMOKE_SRC = tests/fdc_smoke_test.c
+SIO_SMOKE_SRC = tests/sio_smoke_test.c
+CRT_SMOKE_SRC = tests/crt_smoke_test.c
+HDC_SMOKE_SRC = tests/hdc_smoke_test.c
+ROM_SMOKE_ASM = tests/rom_smoke.asm
+ROM_SMOKE_BIN = tests/rom_smoke.bin
+ROM_SMOKE_LST = tests/rom_smoke.lst
+ROM_SMOKE_RUNNER_SRC = tests/rom_smoke_runner.c
+ROM_NMI_SMOKE_ASM = tests/rom_nmi_smoke.asm
+ROM_NMI_SMOKE_BIN = tests/rom_nmi_smoke.bin
+ROM_NMI_SMOKE_LST = tests/rom_nmi_smoke.lst
+ROM_NMI_SMOKE_RUNNER_SRC = tests/rom_nmi_smoke_runner.c
 
-.PHONY: all clean test smoke
+.PHONY: all clean test smoke fdc-smoke sio-smoke crt-smoke hdc-smoke rom-smoke rom-nmi-smoke
 
 all: ../emu/libemu.a ../z80/libz80.a kaypro_run
 
@@ -35,16 +49,61 @@ all: ../emu/libemu.a ../z80/libz80.a kaypro_run
 ../z80/libz80.a:
 	$(MAKE) -C ../z80 lib
 
-kaypro_run: $(MACHINE_SRC) $(DEVICE_SRC) $(MAIN_SRC)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+kaypro_run: ../emu/libemu.a ../z80/libz80.a $(MACHINE_SRC) $(DEVICE_SRC) $(MAIN_SRC)
+	$(CC) $(CFLAGS) -o $@ $(MACHINE_SRC) $(DEVICE_SRC) $(MAIN_SRC) $(LDFLAGS)
 
 smoke: ../emu/libemu.a ../z80/libz80.a tests/smoke_test
 	./tests/smoke_test
 
+fdc-smoke: ../emu/libemu.a ../z80/libz80.a tests/fdc_smoke_test
+	./tests/fdc_smoke_test
+
+sio-smoke: ../emu/libemu.a ../z80/libz80.a tests/sio_smoke_test
+	./tests/sio_smoke_test
+
+crt-smoke: ../emu/libemu.a ../z80/libz80.a tests/crt_smoke_test
+	./tests/crt_smoke_test
+
+hdc-smoke: ../emu/libemu.a ../z80/libz80.a tests/hdc_smoke_test
+	./tests/hdc_smoke_test
+
+rom-smoke: ../emu/libemu.a ../z80/libz80.a tests/rom_smoke_runner
+	./tests/rom_smoke_runner
+
+rom-nmi-smoke: ../emu/libemu.a ../z80/libz80.a tests/rom_nmi_smoke_runner
+	./tests/rom_nmi_smoke_runner
+
 tests/smoke_test: $(MACHINE_SRC) $(DEVICE_SRC) $(SMOKE_SRC)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-test: smoke
+tests/fdc_smoke_test: $(MACHINE_SRC) $(DEVICE_SRC) $(FDC_SMOKE_SRC)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+tests/sio_smoke_test: $(MACHINE_SRC) $(DEVICE_SRC) $(SIO_SMOKE_SRC)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+tests/crt_smoke_test: $(MACHINE_SRC) $(DEVICE_SRC) $(CRT_SMOKE_SRC)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+tests/hdc_smoke_test: $(MACHINE_SRC) $(DEVICE_SRC) $(HDC_SMOKE_SRC)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+$(ROM_SMOKE_BIN) $(ROM_SMOKE_LST): $(ROM_SMOKE_ASM)
+	$(ASM) -e -w -C Z80 -l $(ROM_SMOKE_LST) -b -o $(ROM_SMOKE_BIN) $(ROM_SMOKE_ASM)
+
+tests/rom_smoke_runner: $(MACHINE_SRC) $(DEVICE_SRC) $(ROM_SMOKE_RUNNER_SRC) $(ROM_SMOKE_BIN)
+	$(CC) $(CFLAGS) -o $@ $(MACHINE_SRC) $(DEVICE_SRC) $(ROM_SMOKE_RUNNER_SRC) $(LDFLAGS)
+
+$(ROM_NMI_SMOKE_BIN) $(ROM_NMI_SMOKE_LST): $(ROM_NMI_SMOKE_ASM)
+	$(ASM) -e -w -C Z80 -l $(ROM_NMI_SMOKE_LST) -b -o $(ROM_NMI_SMOKE_BIN) $(ROM_NMI_SMOKE_ASM)
+
+tests/rom_nmi_smoke_runner: $(MACHINE_SRC) $(DEVICE_SRC) $(ROM_NMI_SMOKE_RUNNER_SRC) $(ROM_NMI_SMOKE_BIN)
+	$(CC) $(CFLAGS) -o $@ $(MACHINE_SRC) $(DEVICE_SRC) $(ROM_NMI_SMOKE_RUNNER_SRC) $(LDFLAGS)
+
+test: smoke fdc-smoke sio-smoke crt-smoke hdc-smoke rom-smoke rom-nmi-smoke
 
 clean:
-	rm -f kaypro_run tests/smoke_test
+	rm -f kaypro_run tests/smoke_test tests/fdc_smoke_test tests/sio_smoke_test
+	rm -f tests/crt_smoke_test tests/hdc_smoke_test
+	rm -f tests/rom_smoke.bin tests/rom_smoke.lst tests/rom_smoke_runner
+	rm -f tests/rom_nmi_smoke.bin tests/rom_nmi_smoke.lst tests/rom_nmi_smoke_runner
