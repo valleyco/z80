@@ -54,6 +54,8 @@ static void crt_strobe(kaypro_t *m) {
 int main(void) {
   kaypro_t *m = kaypro_create();
   assert(m);
+  assert(kaypro_crt_cols() == 80);
+  assert(kaypro_crt_rows() == 25);
 
   /* Status bit7 must be set or vidinit clear loops forever. */
   assert((read_port(m, PORT_CRT_STATUS) & 0x80) != 0);
@@ -64,40 +66,63 @@ int main(void) {
   assert(crt_read_reg(m, 0x00) == 0x6A);
   assert(crt_read_reg(m, 0x01) == 0x50);
 
-  /* Char-plane writes echo printable text (TX capture; no host console). */
-  kaypro_crt_tx_clear(m->crt);
+  /* Char-plane writes store into the cell buffer at mem_addr. */
+  kaypro_crt_clear_dirty(m->crt);
   crt_set_addr(m, 0x0000, false);
   crt_strobe(m);
   assert((read_port(m, PORT_CRT_STATUS) & 0x80) != 0);
   write_port(m, PORT_CRT_DATA, 'H');
   write_port(m, PORT_CRT_DATA, 'i');
   write_port(m, PORT_CRT_DATA, '\r');
-  assert(kaypro_crt_tx_count(m->crt) == 3);
-  assert(kaypro_crt_tx_at(m->crt, 0) == 'H');
-  assert(kaypro_crt_tx_at(m->crt, 1) == 'i');
-  assert(kaypro_crt_tx_at(m->crt, 2) == '\n');
+  {
+    const uint8_t *cells = kaypro_crt_cells(m->crt);
+    assert(cells[0] == 'H');
+    assert(cells[1] == 'i');
+    assert(cells[2] == '\r'); /* CR is a cell byte, not a host newline */
+    assert(kaypro_crt_is_dirty(m->crt));
+    kaypro_crt_clear_dirty(m->crt);
+    assert(!kaypro_crt_is_dirty(m->crt));
+  }
 
-  /* Leading spaces (clear-screen flood) are suppressed. */
-  kaypro_crt_tx_clear(m->crt);
+  /* Spaces are stored like any other character. */
   write_port(m, PORT_CRT_DATA, ' ');
   write_port(m, PORT_CRT_DATA, ' ');
-  assert(kaypro_crt_tx_count(m->crt) == 0);
-
-  /* Inter-word space after a graphic is kept. */
   write_port(m, PORT_CRT_DATA, 'A');
   write_port(m, PORT_CRT_DATA, ' ');
   write_port(m, PORT_CRT_DATA, 'B');
-  assert(kaypro_crt_tx_count(m->crt) == 3);
-  assert(kaypro_crt_tx_at(m->crt, 0) == 'A');
-  assert(kaypro_crt_tx_at(m->crt, 1) == ' ');
-  assert(kaypro_crt_tx_at(m->crt, 2) == 'B');
+  {
+    const uint8_t *cells = kaypro_crt_cells(m->crt);
+    assert(cells[3] == ' ');
+    assert(cells[4] == ' ');
+    assert(cells[5] == 'A');
+    assert(cells[6] == ' ');
+    assert(cells[7] == 'B');
+  }
 
-  /* Attribute-plane writes must not echo. */
-  kaypro_crt_tx_clear(m->crt);
+  /* Attribute-plane writes must not change character cells. */
+  uint8_t before = kaypro_crt_cells(m->crt)[1];
   crt_set_addr(m, 0x0001, true);
   crt_strobe(m);
   write_port(m, PORT_CRT_DATA, 'X');
-  assert(kaypro_crt_tx_count(m->crt) == 0);
+  assert(kaypro_crt_cells(m->crt)[1] == before);
+
+  /* Cursor address targeting mid-screen. */
+  crt_set_addr(m, (uint16_t)(KAYPRO_CRT_COLS + 2), false);
+  crt_strobe(m);
+  write_port(m, PORT_CRT_DATA, 'Z');
+  assert(kaypro_crt_cells(m->crt)[KAYPRO_CRT_COLS + 2] == 'Z');
+
+  /* Visible cursor comes from R14/R15, not the VRAM update pointer. */
+  crt_write_reg(m, 0x0E, 0x00);
+  crt_write_reg(m, 0x0F, (uint8_t)(KAYPRO_CRT_COLS + 3));
+  {
+    unsigned col = 0;
+    unsigned row = 0;
+    kaypro_crt_cursor(m->crt, &col, &row);
+    assert(col == 3);
+    assert(row == 1);
+    assert(kaypro_crt_is_dirty(m->crt));
+  }
 
   kaypro_destroy(m);
   printf("kaypro crt smoke: ok\n");

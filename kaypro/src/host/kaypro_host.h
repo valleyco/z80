@@ -1,6 +1,7 @@
 #ifndef KAYPRO_HOST_H
 #define KAYPRO_HOST_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -14,6 +15,11 @@ extern "C" {
 typedef struct kaypro_host_ops {
   void (*console_write)(void *ctx, const uint8_t *data, size_t len);
   int (*console_poll)(void *ctx); /* -1 if none, else byte for SIO B */
+  /* Return true if the frame was painted (so the machine may clear dirty).
+   * cursor_col/row are 0-based positions within the text grid. */
+  bool (*display_refresh)(void *ctx, const uint8_t *cells, unsigned cols,
+                          unsigned rows, unsigned cursor_col,
+                          unsigned cursor_row);
   void (*log)(void *ctx, const char *msg);
   void *ctx;
 } kaypro_host_ops_t;

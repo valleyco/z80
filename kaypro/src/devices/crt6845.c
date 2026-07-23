@@ -3,9 +3,11 @@
 #include <string.h>
 
 #include "crt6845.h"
-#include "kaypro_host.h"
 
-#define CRT_TX_CAP 256
+#define CRT_REG_CURSOR_HI 0x0E
+#define CRT_REG_CURSOR_LO 0x0F
+#define CRT_REG_ADDR_HI 0x12
+#define CRT_REG_ADDR_LO 0x13
 
 typedef struct {
   EmuDevice emu;
@@ -13,19 +15,18 @@ typedef struct {
   uint8_t regs[32];
   uint16_t mem_addr;
   bool attr_plane;
-  bool last_graph;
-  uint8_t tx[CRT_TX_CAP];
-  unsigned tx_count;
-  const kaypro_host_ops_t *host;
+  bool dirty;
+  uint8_t cells[KAYPRO_CRT_CELLS];
 } crt_impl_t;
 
-static void crt_tx_push(crt_impl_t *crt, uint8_t c) {
-  if (crt->tx_count < CRT_TX_CAP) crt->tx[crt->tx_count++] = c;
+static void crt_fill_spaces(crt_impl_t *crt) {
+  memset(crt->cells, ' ', sizeof(crt->cells));
+  crt->dirty = true;
 }
 
-static void crt_host_write(crt_impl_t *crt, const uint8_t *data, size_t len) {
-  if (crt->host && crt->host->console_write)
-    crt->host->console_write(crt->host->ctx, data, len);
+static uint16_t crt_cursor_addr(const crt_impl_t *crt) {
+  return (uint16_t)(((crt->regs[CRT_REG_CURSOR_HI] & 0x3F) << 8) |
+                    crt->regs[CRT_REG_CURSOR_LO]);
 }
 
 static int crt_read_status(void *dev, int port) {
@@ -61,8 +62,8 @@ static void crt_write_cmd(void *dev, int port, int value) {
 }
 
 static void crt_apply_addr(crt_impl_t *crt) {
-  uint16_t hi = crt->regs[0x12];
-  uint16_t lo = crt->regs[0x13];
+  uint16_t hi = crt->regs[CRT_REG_ADDR_HI];
+  uint16_t lo = crt->regs[CRT_REG_ADDR_LO];
   crt->attr_plane = (hi & 0x08) != 0;
   crt->mem_addr = (uint16_t)(((hi & 0x07) << 8) | lo);
 }
@@ -71,7 +72,11 @@ static void crt_write_regdata(void *dev, int port, int value) {
   crt_impl_t *crt = (crt_impl_t *)dev;
   (void)port;
   if (crt->reg_sel < 32) crt->regs[crt->reg_sel] = (uint8_t)value;
-  if (crt->reg_sel == 0x12 || crt->reg_sel == 0x13) crt_apply_addr(crt);
+  if (crt->reg_sel == CRT_REG_ADDR_HI || crt->reg_sel == CRT_REG_ADDR_LO)
+    crt_apply_addr(crt);
+  /* Visible hardware cursor (R14/R15) — host must repaint to move it. */
+  if (crt->reg_sel == CRT_REG_CURSOR_HI || crt->reg_sel == CRT_REG_CURSOR_LO)
+    crt->dirty = true;
 }
 
 static void crt_write_unused(void *dev, int port, int value) {
@@ -80,62 +85,14 @@ static void crt_write_unused(void *dev, int port, int value) {
   (void)value;
 }
 
-static void crt_echo(crt_impl_t *crt, uint8_t c) {
-  if (crt->attr_plane) return;
-
-  if (c == 0x0D) {
-    crt_tx_push(crt, '\n');
-    {
-      uint8_t out = '\n';
-      crt_host_write(crt, &out, 1);
-    }
-    crt->last_graph = false;
-    return;
-  }
-  if (c == 0x0A) {
-    crt_tx_push(crt, '\n');
-    {
-      uint8_t out = '\n';
-      crt_host_write(crt, &out, 1);
-    }
-    crt->last_graph = false;
-    return;
-  }
-  if (c == 0x08) {
-    crt_tx_push(crt, 0x08);
-    {
-      static const uint8_t bs[] = {'\b', ' ', '\b'};
-      crt_host_write(crt, bs, sizeof(bs));
-    }
-    crt->last_graph = false;
-    return;
-  }
-  if (c == 0x07) return;
-
-  if (c == 0x20) {
-    /* Suppress clear-screen space floods; keep inter-word spaces. */
-    if (crt->last_graph) {
-      crt_tx_push(crt, ' ');
-      {
-        uint8_t out = ' ';
-        crt_host_write(crt, &out, 1);
-      }
-      crt->last_graph = false;
-    }
-    return;
-  }
-
-  if (c >= 0x21 && c < 0x7F) {
-    crt_tx_push(crt, c);
-    crt_host_write(crt, &c, 1);
-    crt->last_graph = true;
-  }
-}
-
 static void crt_write_data(void *dev, int port, int value) {
   crt_impl_t *crt = (crt_impl_t *)dev;
   (void)port;
-  crt_echo(crt, (uint8_t)value);
+  if (!crt->attr_plane) {
+    unsigned idx = (unsigned)crt->mem_addr % KAYPRO_CRT_CELLS;
+    crt->cells[idx] = (uint8_t)value;
+    crt->dirty = true;
+  }
   crt->mem_addr = (uint16_t)((crt->mem_addr + 1) & 0x7FF);
 }
 
@@ -145,8 +102,7 @@ static void crt_reset(EmuDevice *dev) {
   crt->reg_sel = 0;
   crt->mem_addr = 0;
   crt->attr_plane = false;
-  crt->last_graph = false;
-  crt->tx_count = 0;
+  crt_fill_spaces(crt);
 }
 
 static void crt_destroy(EmuDevice *dev) { free(dev->ctx); }
@@ -156,28 +112,34 @@ static int (*crt_reads[])(void *, int) = {
 static void (*crt_writes[])(void *, int, int) = {
     crt_write_cmd, crt_write_regdata, crt_write_unused, crt_write_data};
 
-void kaypro_crt_set_host(kaypro_crt_t *crt, const kaypro_host_ops_t *host) {
-  ((crt_impl_t *)crt)->host = host;
+const uint8_t *kaypro_crt_cells(const kaypro_crt_t *crt) {
+  return ((const crt_impl_t *)crt)->cells;
 }
 
-unsigned kaypro_crt_tx_count(const kaypro_crt_t *crt) {
-  return ((const crt_impl_t *)crt)->tx_count;
-}
+unsigned kaypro_crt_cols(void) { return KAYPRO_CRT_COLS; }
 
-uint8_t kaypro_crt_tx_at(const kaypro_crt_t *crt, unsigned index) {
+unsigned kaypro_crt_rows(void) { return KAYPRO_CRT_ROWS; }
+
+void kaypro_crt_cursor(const kaypro_crt_t *crt, unsigned *col, unsigned *row) {
   const crt_impl_t *impl = (const crt_impl_t *)crt;
-  if (index >= impl->tx_count) return 0;
-  return impl->tx[index];
+  unsigned idx = (unsigned)crt_cursor_addr(impl) % KAYPRO_CRT_CELLS;
+  if (col) *col = idx % KAYPRO_CRT_COLS;
+  if (row) *row = idx / KAYPRO_CRT_COLS;
 }
 
-void kaypro_crt_tx_clear(kaypro_crt_t *crt) {
-  ((crt_impl_t *)crt)->tx_count = 0;
+bool kaypro_crt_is_dirty(const kaypro_crt_t *crt) {
+  return ((const crt_impl_t *)crt)->dirty;
+}
+
+void kaypro_crt_clear_dirty(kaypro_crt_t *crt) {
+  ((crt_impl_t *)crt)->dirty = false;
 }
 
 kaypro_crt_t *kaypro_crt_create(void) {
   crt_impl_t *crt = (crt_impl_t *)calloc(1, sizeof(crt_impl_t));
   if (!crt) return NULL;
 
+  crt_fill_spaces(crt);
   crt->emu.ctx = crt;
   crt->emu.port.port_count = 4;
   crt->emu.port.read = crt_reads;

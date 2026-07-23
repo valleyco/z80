@@ -30,8 +30,6 @@ kaypro_t *kaypro_create(void) {
     return NULL;
   }
 
-  kaypro_crt_set_host(m->crt, &m->host);
-
   kaypro_add_device(m, &m->fdc->emu);
   kaypro_add_device(m, &m->sio->emu);
   kaypro_add_device(m, &m->sysport->emu);
@@ -68,7 +66,6 @@ void kaypro_set_host(kaypro_t *m, const kaypro_host_ops_t *ops) {
     m->host = *ops;
   else
     memset(&m->host, 0, sizeof(m->host));
-  if (m->crt) kaypro_crt_set_host(m->crt, &m->host);
 }
 
 bool kaypro_load_rom_bytes(kaypro_t *m, const uint8_t *data, size_t len) {
@@ -117,6 +114,17 @@ void kaypro_step(kaypro_t *m, unsigned m_cycles) {
     m->needs_nmi = false;
     kaypro_fdc_clear_nmi(m->fdc);
     z80_run_m(&m->cpu, 32);
+  }
+
+  if (m->host.display_refresh && kaypro_crt_is_dirty(m->crt)) {
+    unsigned cursor_col = 0;
+    unsigned cursor_row = 0;
+    kaypro_crt_cursor(m->crt, &cursor_col, &cursor_row);
+    if (m->host.display_refresh(m->host.ctx, kaypro_crt_cells(m->crt),
+                                kaypro_crt_cols(), kaypro_crt_rows(),
+                                cursor_col, cursor_row)) {
+      kaypro_crt_clear_dirty(m->crt);
+    }
   }
 }
 

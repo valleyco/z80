@@ -1,12 +1,18 @@
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include "kaypro_host.h"
 
+#define POSIX_DISPLAY_MIN_MS 50
+
 static bool stdin_nonblock_set;
+static bool display_cleared;
+static struct timeval display_last_paint;
 
 static void posix_console_write(void *ctx, const uint8_t *data, size_t len) {
   (void)ctx;
@@ -38,10 +44,58 @@ static void posix_log(void *ctx, const char *msg) {
   if (msg) fprintf(stderr, "%s\n", msg);
 }
 
+static long posix_elapsed_ms(const struct timeval *then, const struct timeval *now) {
+  return (now->tv_sec - then->tv_sec) * 1000L +
+         (now->tv_usec - then->tv_usec) / 1000L;
+}
+
+static uint8_t posix_glyph(uint8_t c) {
+  if (c >= 0x20 && c < 0x7F) return c;
+  return (uint8_t)' ';
+}
+
+static bool posix_display_refresh(void *ctx, const uint8_t *cells, unsigned cols,
+                                  unsigned rows, unsigned cursor_col,
+                                  unsigned cursor_row) {
+  (void)ctx;
+  if (!cells || cols == 0 || rows == 0) return true;
+
+  struct timeval now;
+  gettimeofday(&now, NULL);
+  if (display_cleared &&
+      posix_elapsed_ms(&display_last_paint, &now) < POSIX_DISPLAY_MIN_MS) {
+    return false; /* keep dirty so the latest frame is painted later */
+  }
+
+  if (!display_cleared) {
+    fputs("\033[2J", stdout);
+    display_cleared = true;
+  }
+
+  /* Paint rows with absolute CUP so we do not scroll past the grid. */
+  for (unsigned r = 0; r < rows; r++) {
+    fprintf(stdout, "\033[%u;1H", r + 1);
+    for (unsigned c = 0; c < cols; c++) {
+      uint8_t ch = posix_glyph(cells[r * cols + c]);
+      fputc((int)ch, stdout);
+    }
+  }
+
+  if (cursor_col >= cols) cursor_col = cols - 1;
+  if (cursor_row >= rows) cursor_row = rows - 1;
+  fprintf(stdout, "\033[%u;%uH\033[?25h", cursor_row + 1, cursor_col + 1);
+  fflush(stdout);
+  display_last_paint = now;
+  return true;
+}
+
 void kaypro_host_posix_install(kaypro_t *m) {
+  display_cleared = false;
+  memset(&display_last_paint, 0, sizeof(display_last_paint));
   kaypro_host_ops_t ops = {
       .console_write = posix_console_write,
       .console_poll = posix_console_poll,
+      .display_refresh = posix_display_refresh,
       .log = posix_log,
       .ctx = NULL,
   };
