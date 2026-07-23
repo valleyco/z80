@@ -1,3 +1,4 @@
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -108,6 +109,9 @@ int main(int argc, char **argv) {
   } else {
     while (!kaypro_host_posix_quit_requested()) {
       kaypro_step(m, chunk_mcycles);
+      /* Yield so the terminal can process PTY I/O; a tight spin can make
+       * interactive sessions look frozen after heavy ANSI screen paints. */
+      poll(NULL, 0, 1); /* 1ms */
     }
   }
 

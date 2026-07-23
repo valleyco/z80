@@ -93,10 +93,15 @@ void kaypro_reset(kaypro_t *m) {
 }
 
 void kaypro_step(kaypro_t *m, unsigned m_cycles) {
-  /* Host keyboard → SIO channel B (Kaypro console keyboard). */
+  /* Host keyboard → SIO channel B (Kaypro console keyboard).
+   * Drain all pending host bytes each step so typed-ahead input is not
+   * limited to one character per m-cycle chunk. */
   if (m->host.console_poll) {
-    int c = m->host.console_poll(m->host.ctx);
-    if (c >= 0) kaypro_sio_push_rx_b(m->sio, (uint8_t)(c & 0x7F));
+    for (int n = 0; n < 64; n++) {
+      int c = m->host.console_poll(m->host.ctx);
+      if (c < 0) break;
+      kaypro_sio_push_rx_b(m->sio, (uint8_t)(c & 0x7F));
+    }
   }
 
   for (int i = 0; i < m->device_count; i++) {
