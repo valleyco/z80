@@ -89,11 +89,13 @@ int main(int argc, char **argv) {
   kaypro_set_trace_io(m, trace);
   kaypro_reset(m);
 
-  fprintf(stderr, "Kaypro 4/84 emulator running (Ctrl-C to quit)\n");
+  fprintf(stderr,
+          "Kaypro 4/84 emulator running (Ctrl-\\ to quit; Ctrl-C goes to CP/M)\n");
 
   if (limit_mcycles > 0) {
     unsigned ran = 0;
-    while (ran < limit_mcycles && !kaypro_halted(m) && !kaypro_fetch_trap_hit(m)) {
+    while (ran < limit_mcycles && !kaypro_halted(m) && !kaypro_fetch_trap_hit(m) &&
+           !kaypro_host_posix_quit_requested()) {
       unsigned slice = chunk_mcycles;
       if (slice > limit_mcycles - ran) slice = limit_mcycles - ran;
       kaypro_step(m, slice);
@@ -104,7 +106,7 @@ int main(int argc, char **argv) {
             ran, kaypro_pc(m), kaypro_halted(m), kaypro_fetch_trap_hit(m),
             kaypro_fetch_trap_addr(m), kaypro_sysport_state(m));
   } else {
-    while (1) {
+    while (!kaypro_host_posix_quit_requested()) {
       kaypro_step(m, chunk_mcycles);
     }
   }

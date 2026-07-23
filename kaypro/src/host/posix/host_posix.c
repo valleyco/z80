@@ -1,18 +1,47 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include "kaypro_host.h"
 
 #define POSIX_DISPLAY_MIN_MS 50
+#define POSIX_QUIT_BYTE 0x1C /* Ctrl-\ */
 
 static bool stdin_nonblock_set;
 static bool display_cleared;
+static bool termios_saved;
+static bool quit_requested;
+static struct termios termios_original;
 static struct timeval display_last_paint;
+
+static void posix_restore_terminal(void) {
+  if (termios_saved) {
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &termios_original);
+    termios_saved = false;
+  }
+  fputs("\033[?25h", stdout);
+  fflush(stdout);
+}
+
+static void posix_setup_terminal(void) {
+  if (!isatty(STDIN_FILENO)) return;
+  if (tcgetattr(STDIN_FILENO, &termios_original) != 0) return;
+  termios_saved = true;
+  atexit(posix_restore_terminal);
+
+  struct termios raw = termios_original;
+  raw.c_lflag &= (tcflag_t) ~(ICANON | ECHO | ISIG);
+  raw.c_iflag &= (tcflag_t)~IXON;
+  raw.c_cc[VMIN] = 0;
+  raw.c_cc[VTIME] = 0;
+  tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+}
 
 static void posix_console_write(void *ctx, const uint8_t *data, size_t len) {
   (void)ctx;
@@ -34,9 +63,20 @@ static void posix_ensure_stdin_nonblock(void) {
 static int posix_console_poll(void *ctx) {
   (void)ctx;
   posix_ensure_stdin_nonblock();
-  int c = getchar();
-  if (c == EOF) return -1;
-  return c & 0x7F;
+
+  unsigned char byte = 0;
+  ssize_t n = read(STDIN_FILENO, &byte, 1);
+  if (n < 0) {
+    if (errno == EAGAIN || errno == EWOULDBLOCK) return -1;
+    return -1;
+  }
+  if (n == 0) return -1;
+
+  if (byte == POSIX_QUIT_BYTE) {
+    quit_requested = true;
+    return -1;
+  }
+  return (int)(byte & 0x7F);
 }
 
 static void posix_log(void *ctx, const char *msg) {
@@ -89,9 +129,15 @@ static bool posix_display_refresh(void *ctx, const uint8_t *cells, unsigned cols
   return true;
 }
 
+bool kaypro_host_posix_quit_requested(void) { return quit_requested; }
+
 void kaypro_host_posix_install(kaypro_t *m) {
+  quit_requested = false;
   display_cleared = false;
   memset(&display_last_paint, 0, sizeof(display_last_paint));
+  posix_setup_terminal();
+  posix_ensure_stdin_nonblock();
+
   kaypro_host_ops_t ops = {
       .console_write = posix_console_write,
       .console_poll = posix_console_poll,

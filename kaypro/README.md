@@ -52,6 +52,14 @@ Paths are relative to your current working directory:
 ./kaypro_run --rom assets/81-478a.rom --disk-a assets/kaypro1.dsk --trace
 ```
 
+### Keyboard (POSIX host)
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+C` | Sent to CP/M as `0x03` (does **not** quit the emulator) |
+| `Ctrl+\` | Quit the emulator and restore the terminal |
+
+
 ## Layout
 
 | Path | Role |

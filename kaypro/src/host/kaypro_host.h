@@ -32,6 +32,8 @@ bool kaypro_attach_disk(kaypro_t *m, int drive, const char *path);
 
 /* Install stdin/stdout/stderr console + log ops for desktop runs. */
 void kaypro_host_posix_install(kaypro_t *m);
+/* True after the host quit key (Ctrl-\) is pressed. */
+bool kaypro_host_posix_quit_requested(void);
 
 #ifdef __cplusplus
 }
