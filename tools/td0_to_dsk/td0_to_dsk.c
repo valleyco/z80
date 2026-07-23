@@ -1,8 +1,10 @@
 /*
  * Convert TeleDisk .td0 images to Kaypro 4/84 DSDD raw .dsk layout.
  *
- * Kaypro linear layout: track-major, side 0 then side 1, sectors 1-9, 512 bytes.
- *   offset = ((cyl * 2 + head) * 9 + (sec - 1)) * 512
+ * Universal ROM DSDD uses 10 x 512-byte sectors per side (DPB SPT=40 records):
+ *   side 0 IDs 0-9, side 1 IDs 10-19. Sector 0 is the cold-boot record.
+ * Linear layout: track-major, side 0 then side 1:
+ *   offset = ((cyl * 2 + head) * 10 + phys) * 512
  *
  * Uses td0Read.c (GPL-2+) from ogdenpm/disktools.
  */
@@ -17,16 +19,16 @@
 
 #define KAYPRO_TRACKS 40
 #define KAYPRO_SIDES 2
-#define KAYPRO_SPT 9
+#define KAYPRO_SPT 10
 #define KAYPRO_SSIZE 512
 #define KAYPRO_DSDD_SIZE (KAYPRO_TRACKS * KAYPRO_SIDES * KAYPRO_SPT * KAYPRO_SSIZE)
 
 static bool verbose;
 static bool debug_rejects;
 
-static size_t kaypro_offset(unsigned cyl, unsigned head, unsigned sec) {
+static size_t kaypro_offset(unsigned cyl, unsigned head, unsigned phys) {
   return ((size_t)cyl * KAYPRO_SIDES + head) * KAYPRO_SPT * KAYPRO_SSIZE +
-         (sec - 1) * KAYPRO_SSIZE;
+         phys * KAYPRO_SSIZE;
 }
 
 static bool sector_usable(const sector_t *sec) {
@@ -40,9 +42,9 @@ static bool sector_usable(const sector_t *sec) {
 }
 
 static int kaypro_phys_sec(unsigned head, unsigned id) {
-  if (head == 0 && id >= 1 && id <= KAYPRO_SPT)
+  if (head == 0 && id < KAYPRO_SPT)
     return (int)id;
-  if (head == 1 && id >= 11 && id <= 19)
+  if (head == 1 && id >= 10 && id < 10 + KAYPRO_SPT)
     return (int)(id - 10);
   return -1;
 }
@@ -80,7 +82,7 @@ static void write_sector(uint8_t *image, const sector_t *sec, unsigned track_cyl
 
 static void usage(const char *prog) {
   fprintf(stderr, "Usage: %s [-v] input.td0 output.dsk\n", prog);
-  fprintf(stderr, "  Convert TeleDisk image to Kaypro 390K DSDD raw sector image.\n");
+  fprintf(stderr, "  Convert TeleDisk image to Kaypro DSDD raw sector image (40x2x10x512).\n");
 }
 
 int main(int argc, char **argv) {
