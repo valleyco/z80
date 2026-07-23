@@ -2,6 +2,7 @@
 #define KAYPRO_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -13,8 +14,10 @@ typedef struct kaypro kaypro_t;
 kaypro_t *kaypro_create(void);
 void kaypro_destroy(kaypro_t *m);
 
-bool kaypro_load_rom(kaypro_t *m, const char *path);
-bool kaypro_attach_disk(kaypro_t *m, int drive, const char *path);
+/* Portable asset loaders. ROM is copied into the machine.
+ * Disk: takes ownership of a malloc'd buffer (freed on reattach/destroy). */
+bool kaypro_load_rom_bytes(kaypro_t *m, const uint8_t *data, size_t len);
+bool kaypro_attach_disk_mem(kaypro_t *m, int drive, uint8_t *data, size_t size);
 
 void kaypro_reset(kaypro_t *m);
 void kaypro_step(kaypro_t *m, unsigned m_cycles);

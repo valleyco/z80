@@ -2,12 +2,24 @@
 
 Terminal-first CP/M machine built on `libz80` and the shared `emu/` port-device framework.
 
+## Layers
+
+| Layer | Path | Rule |
+|-------|------|------|
+| CPU | `../z80/` | Freestanding; bus callbacks only |
+| Port framework | `../emu/` | Freestanding port mux |
+| Machine + devices | `src/machine/`, `src/devices/` | Pure Kaypro; I/O via host ops / memory blobs |
+| Host (POSIX) | `src/host/posix/` | CLI, `fopen`, stdin/stdout; later `host/esp32/` |
+
+Host console/keyboard/logging is injected with `kaypro_set_host()` / `kaypro_host_posix_install()`.
+ROM and disks load as bytes (`kaypro_load_rom_bytes`, `kaypro_attach_disk_mem`); path helpers live in the POSIX host.
+
 ## Build
 
 ```bash
 make -C ..          # from repo root
 make -C .. kaypro   # this target only
-make test           # smoke test (memory banking)
+make test           # smoke tests
 ```
 
 ## Prerequisites
@@ -41,7 +53,8 @@ Paths are relative to your current working directory:
 |------|------|
 | `src/machine/` | Kaypro wiring, memory map, port registration |
 | `src/devices/` | sysport, SIO, FDC1793, keyboard, CRT (SY6545), HDC stub |
-| `src/main.c` | CLI entry point |
+| `src/host/kaypro_host.h` | Host ops + path-loader declarations |
+| `src/host/posix/` | Desktop CLI, stdin/stdout, file loaders |
 | `tests/smoke_test.c` | Bank-1 ROM read regression |
 | `tests/crt_smoke_test.c` | SY6545 port ready/regs/char echo |
 | `tests/hdc_smoke_test.c` | WD1002 absent-controller fail-fast |

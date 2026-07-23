@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "device.h"
+#include "kaypro_host.h"
 #include "port_bus.h"
 #include "z80.h"
 
@@ -28,6 +29,7 @@ typedef struct kaypro {
   int device_cap;
   bool needs_nmi;
   bool trace_io;
+  kaypro_host_ops_t host;
 
   kaypro_sysport_t *sysport;
   kaypro_sio_t *sio;

@@ -1,8 +1,8 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "kaypro.h"
+#include "kaypro_host.h"
 #include "kaypro_internal.h"
 #include "crt6845.h"
 #include "fdc1793.h"
@@ -29,6 +29,8 @@ kaypro_t *kaypro_create(void) {
     kaypro_destroy(m);
     return NULL;
   }
+
+  kaypro_crt_set_host(m->crt, &m->host);
 
   kaypro_add_device(m, &m->fdc->emu);
   kaypro_add_device(m, &m->sio->emu);
@@ -60,16 +62,26 @@ void kaypro_destroy(kaypro_t *m) {
   free(m);
 }
 
-bool kaypro_load_rom(kaypro_t *m, const char *path) {
-  FILE *f = fopen(path, "rb");
-  if (!f) return false;
-  size_t n = fread(m->rom, 1, KAYPRO_ROM_SIZE, f);
-  fclose(f);
-  return n > 0;
+void kaypro_set_host(kaypro_t *m, const kaypro_host_ops_t *ops) {
+  if (!m) return;
+  if (ops)
+    m->host = *ops;
+  else
+    memset(&m->host, 0, sizeof(m->host));
+  if (m->crt) kaypro_crt_set_host(m->crt, &m->host);
 }
 
-bool kaypro_attach_disk(kaypro_t *m, int drive, const char *path) {
-  return kaypro_fdc_attach(m->fdc, drive, path);
+bool kaypro_load_rom_bytes(kaypro_t *m, const uint8_t *data, size_t len) {
+  if (!m || !data || len == 0) return false;
+  size_t n = len < KAYPRO_ROM_SIZE ? len : KAYPRO_ROM_SIZE;
+  memset(m->rom, 0, KAYPRO_ROM_SIZE);
+  memcpy(m->rom, data, n);
+  return true;
+}
+
+bool kaypro_attach_disk_mem(kaypro_t *m, int drive, uint8_t *data, size_t size) {
+  if (!m || !m->fdc) return false;
+  return kaypro_fdc_attach_mem(m->fdc, drive, data, size);
 }
 
 void kaypro_reset(kaypro_t *m) {
@@ -84,6 +96,12 @@ void kaypro_reset(kaypro_t *m) {
 }
 
 void kaypro_step(kaypro_t *m, unsigned m_cycles) {
+  /* Host keyboard → SIO channel B (Kaypro console keyboard). */
+  if (m->host.console_poll) {
+    int c = m->host.console_poll(m->host.ctx);
+    if (c >= 0) kaypro_sio_push_rx_b(m->sio, (uint8_t)(c & 0x7F));
+  }
+
   for (int i = 0; i < m->device_count; i++) {
     EmuDevice *dev = m->devices[i];
     if (dev && dev->poll) dev->poll(dev);

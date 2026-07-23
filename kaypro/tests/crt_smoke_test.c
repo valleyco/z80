@@ -1,8 +1,7 @@
 #include <assert.h>
-#include <fcntl.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <unistd.h>
 
 #include "crt6845.h"
 #include "kaypro.h"
@@ -53,14 +52,6 @@ static void crt_strobe(kaypro_t *m) {
 }
 
 int main(void) {
-  /* Echo still goes through putchar; keep the smoke log tidy. */
-  int devnull = open("/dev/null", O_WRONLY);
-  assert(devnull >= 0);
-  int saved_stdout = dup(STDOUT_FILENO);
-  assert(saved_stdout >= 0);
-  assert(dup2(devnull, STDOUT_FILENO) == STDOUT_FILENO);
-  close(devnull);
-
   kaypro_t *m = kaypro_create();
   assert(m);
 
@@ -73,7 +64,7 @@ int main(void) {
   assert(crt_read_reg(m, 0x00) == 0x6A);
   assert(crt_read_reg(m, 0x01) == 0x50);
 
-  /* Char-plane writes echo printable text. */
+  /* Char-plane writes echo printable text (TX capture; no host console). */
   kaypro_crt_tx_clear(m->crt);
   crt_set_addr(m, 0x0000, false);
   crt_strobe(m);
@@ -109,10 +100,6 @@ int main(void) {
   assert(kaypro_crt_tx_count(m->crt) == 0);
 
   kaypro_destroy(m);
-
-  fflush(stdout);
-  assert(dup2(saved_stdout, STDOUT_FILENO) == STDOUT_FILENO);
-  close(saved_stdout);
   printf("kaypro crt smoke: ok\n");
   return 0;
 }

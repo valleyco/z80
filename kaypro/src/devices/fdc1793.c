@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -20,7 +19,6 @@
 typedef struct {
   uint8_t *data;
   size_t size;
-  char path[512];
 } fdc_disk_t;
 
 typedef struct {
@@ -45,34 +43,6 @@ typedef struct {
   bool write_mode;
   unsigned index_phase;
 } fdc_impl_t;
-
-static bool fdc_load_disk(fdc_disk_t *disk, const char *path) {
-  FILE *f = fopen(path, "rb");
-  if (!f) return false;
-  fseek(f, 0, SEEK_END);
-  long sz = ftell(f);
-  fseek(f, 0, SEEK_SET);
-  if (sz <= 0) {
-    fclose(f);
-    return false;
-  }
-  free(disk->data);
-  disk->data = (uint8_t *)malloc((size_t)sz);
-  if (!disk->data) {
-    fclose(f);
-    return false;
-  }
-  if (fread(disk->data, 1, (size_t)sz, f) != (size_t)sz) {
-    fclose(f);
-    free(disk->data);
-    disk->data = NULL;
-    return false;
-  }
-  fclose(f);
-  disk->size = (size_t)sz;
-  strncpy(disk->path, path, sizeof(disk->path) - 1);
-  return true;
-}
 
 static fdc_impl_t *fdc_impl(const kaypro_fdc_t *fdc) {
   return (fdc_impl_t *)fdc;
@@ -354,9 +324,13 @@ void fdc1793_set_sysport(kaypro_fdc_t *fdc, uint8_t sysport) {
   impl->side = (sysport & 0x04) ? 0 : 1;
 }
 
-bool kaypro_fdc_attach(kaypro_fdc_t *fdc, int drive, const char *path) {
-  if (drive < 0 || drive > 1) return false;
-  return fdc_load_disk(&fdc_impl(fdc)->drives[drive], path);
+bool kaypro_fdc_attach_mem(kaypro_fdc_t *fdc, int drive, uint8_t *data, size_t size) {
+  if (drive < 0 || drive > 1 || !data || size == 0) return false;
+  fdc_disk_t *disk = &fdc_impl(fdc)->drives[drive];
+  free(disk->data);
+  disk->data = data;
+  disk->size = size;
+  return true;
 }
 
 bool kaypro_fdc_needs_nmi(const kaypro_fdc_t *fdc) {

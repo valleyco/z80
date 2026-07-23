@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "kaypro.h"
+#include "kaypro_host.h"
 #include "kaypro_internal.h"
 #include "fdc1793.h"
 

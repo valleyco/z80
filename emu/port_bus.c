@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 
 #include "port_bus.h"
@@ -16,19 +15,13 @@ bool port_bus_register(PortBus *bus, PortDevice *dev, int start_port) {
     if (dev->read && dev->read[n]) {
       int p = start_port + n;
       if (p < 0 || p > 255) return false;
-      if (bus->dev_read[p]) {
-        fprintf(stderr, "port read collision on port %02xh\n", p);
-        return false;
-      }
+      if (bus->dev_read[p]) return false;
       bus->dev_read[p] = dev;
     }
     if (dev->write && dev->write[n]) {
       int p = start_port + n;
       if (p < 0 || p > 255) return false;
-      if (bus->dev_write[p]) {
-        fprintf(stderr, "port write collision on port %02xh\n", p);
-        return false;
-      }
+      if (bus->dev_write[p]) return false;
       bus->dev_write[p] = dev;
     }
   }

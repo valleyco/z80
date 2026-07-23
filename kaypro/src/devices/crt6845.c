@@ -1,9 +1,9 @@
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "crt6845.h"
+#include "kaypro_host.h"
 
 #define CRT_TX_CAP 256
 
@@ -16,10 +16,16 @@ typedef struct {
   bool last_graph;
   uint8_t tx[CRT_TX_CAP];
   unsigned tx_count;
+  const kaypro_host_ops_t *host;
 } crt_impl_t;
 
 static void crt_tx_push(crt_impl_t *crt, uint8_t c) {
   if (crt->tx_count < CRT_TX_CAP) crt->tx[crt->tx_count++] = c;
+}
+
+static void crt_host_write(crt_impl_t *crt, const uint8_t *data, size_t len) {
+  if (crt->host && crt->host->console_write)
+    crt->host->console_write(crt->host->ctx, data, len);
 }
 
 static int crt_read_status(void *dev, int port) {
@@ -79,22 +85,28 @@ static void crt_echo(crt_impl_t *crt, uint8_t c) {
 
   if (c == 0x0D) {
     crt_tx_push(crt, '\n');
-    putchar('\n');
-    fflush(stdout);
+    {
+      uint8_t out = '\n';
+      crt_host_write(crt, &out, 1);
+    }
     crt->last_graph = false;
     return;
   }
   if (c == 0x0A) {
     crt_tx_push(crt, '\n');
-    putchar('\n');
-    fflush(stdout);
+    {
+      uint8_t out = '\n';
+      crt_host_write(crt, &out, 1);
+    }
     crt->last_graph = false;
     return;
   }
   if (c == 0x08) {
     crt_tx_push(crt, 0x08);
-    fputs("\b \b", stdout);
-    fflush(stdout);
+    {
+      static const uint8_t bs[] = {'\b', ' ', '\b'};
+      crt_host_write(crt, bs, sizeof(bs));
+    }
     crt->last_graph = false;
     return;
   }
@@ -104,8 +116,10 @@ static void crt_echo(crt_impl_t *crt, uint8_t c) {
     /* Suppress clear-screen space floods; keep inter-word spaces. */
     if (crt->last_graph) {
       crt_tx_push(crt, ' ');
-      putchar(' ');
-      fflush(stdout);
+      {
+        uint8_t out = ' ';
+        crt_host_write(crt, &out, 1);
+      }
       crt->last_graph = false;
     }
     return;
@@ -113,8 +127,7 @@ static void crt_echo(crt_impl_t *crt, uint8_t c) {
 
   if (c >= 0x21 && c < 0x7F) {
     crt_tx_push(crt, c);
-    putchar((char)c);
-    fflush(stdout);
+    crt_host_write(crt, &c, 1);
     crt->last_graph = true;
   }
 }
@@ -142,6 +155,10 @@ static int (*crt_reads[])(void *, int) = {
     crt_read_status, crt_read_regdata, crt_read_unused, crt_read_data};
 static void (*crt_writes[])(void *, int, int) = {
     crt_write_cmd, crt_write_regdata, crt_write_unused, crt_write_data};
+
+void kaypro_crt_set_host(kaypro_crt_t *crt, const kaypro_host_ops_t *host) {
+  ((crt_impl_t *)crt)->host = host;
+}
 
 unsigned kaypro_crt_tx_count(const kaypro_crt_t *crt) {
   return ((const crt_impl_t *)crt)->tx_count;

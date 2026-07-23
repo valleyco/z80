@@ -1,14 +1,6 @@
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#ifdef _WIN32
-#include <io.h>
-#else
-#include <fcntl.h>
-#include <unistd.h>
-#endif
 
 #include "sio.h"
 
@@ -29,7 +21,6 @@ typedef struct {
   sio_fifo_t rx_a;
   sio_fifo_t rx_b;
   int tx_count;
-  bool stdin_nb;
 } sio_impl_t;
 
 static void fifo_push(sio_fifo_t *q, uint8_t v) {
@@ -122,26 +113,6 @@ static void sio_reset(EmuDevice *dev) {
   sio->tx_count = 0;
 }
 
-static void sio_ensure_stdin_nonblock(sio_impl_t *sio) {
-  if (sio->stdin_nb) return;
-#ifndef _WIN32
-  int fd = STDIN_FILENO;
-  if (fd >= 0) {
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (flags >= 0) fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-  }
-#endif
-  sio->stdin_nb = true;
-}
-
-static void sio_poll(EmuDevice *dev) {
-  sio_impl_t *sio = (sio_impl_t *)dev->ctx;
-  sio_ensure_stdin_nonblock(sio);
-  /* Kaypro keyboard is SIO channel B (ports 05h/07h). */
-  int c = getchar();
-  if (c != EOF) fifo_push(&sio->rx_b, (uint8_t)(c & 0x7F));
-}
-
 static void sio_destroy(EmuDevice *dev) { free(dev->ctx); }
 
 static int (*sio_reads[])(void *, int) = {
@@ -158,7 +129,6 @@ kaypro_sio_t *kaypro_sio_create(void) {
   sio->emu.port.read = sio_reads;
   sio->emu.port.write = sio_writes;
   sio->emu.reset = sio_reset;
-  sio->emu.poll = sio_poll;
   sio->emu.destroy = sio_destroy;
   return (kaypro_sio_t *)sio;
 }

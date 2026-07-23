@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "kaypro_internal.h"
 #include "crt6845.h"
@@ -32,22 +32,57 @@ void kaypro_register_ports(kaypro_t *m) {
   port_bus_register(&m->port_bus, &m->hdc->emu.port, 0x80);
 }
 
+static void hex_nibble(char *out, unsigned v) {
+  static const char *digits = "0123456789ABCDEF";
+  *out = digits[v & 0xF];
+}
+
+static void hex_byte(char *out, unsigned v) {
+  hex_nibble(out, v >> 4);
+  hex_nibble(out + 1, v);
+}
+
+static void hex_word(char *out, unsigned v) {
+  hex_byte(out, v >> 8);
+  hex_byte(out + 2, v);
+}
+
+static void kaypro_trace_log(kaypro_t *m, bool is_out, uint16_t port, uint8_t value) {
+  if (!m->host.log) return;
+  char msg[48];
+  /* "PC=XXXX IN  XX (XXXX) -> XX" / "PC=XXXX OUT XX (XXXX) <- XX" */
+  memcpy(msg, "PC=", 3);
+  hex_word(msg + 3, m->cpu.pc);
+  if (is_out) {
+    memcpy(msg + 7, " OUT ", 5);
+    hex_byte(msg + 12, port & 0xFF);
+    memcpy(msg + 14, " (", 2);
+    hex_word(msg + 16, port);
+    memcpy(msg + 20, ") <- ", 5);
+    hex_byte(msg + 25, value);
+    msg[27] = '\0';
+  } else {
+    memcpy(msg + 7, " IN  ", 5);
+    hex_byte(msg + 12, port & 0xFF);
+    memcpy(msg + 14, " (", 2);
+    hex_word(msg + 16, port);
+    memcpy(msg + 20, ") -> ", 5);
+    hex_byte(msg + 25, value);
+    msg[27] = '\0';
+  }
+  m->host.log(m->host.ctx, msg);
+}
+
 uint8_t kaypro_bus_io_read(void *ctx, uint16_t port) {
   kaypro_t *m = (kaypro_t *)ctx;
   uint8_t v = port_bus_read(&m->port_bus, port);
-  if (m->trace_io) {
-    fprintf(stderr, "PC=%04X IN  %02X (%04X) -> %02X\n", m->cpu.pc,
-            (unsigned)(port & 0xFF), port, v);
-  }
+  if (m->trace_io) kaypro_trace_log(m, false, port, v);
   return v;
 }
 
 void kaypro_bus_io_write(void *ctx, uint16_t port, uint8_t v) {
   kaypro_t *m = (kaypro_t *)ctx;
-  if (m->trace_io) {
-    fprintf(stderr, "PC=%04X OUT %02X (%04X) <- %02X\n", m->cpu.pc,
-            (unsigned)(port & 0xFF), port, v);
-  }
+  if (m->trace_io) kaypro_trace_log(m, true, port, v);
   /* Baud rate latches (not on FDC). */
   uint8_t p = (uint8_t)(port & 0xFF);
   if (p == 0x00 || p == 0x08) {

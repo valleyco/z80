@@ -9,8 +9,11 @@ typedef struct kaypro_crt {
   EmuDevice emu;
 } kaypro_crt_t;
 
+struct kaypro_host_ops;
+
 /* SY6545-compatible ports at 1Ch-1Fh: status must report ready (bit7). */
 kaypro_crt_t *kaypro_crt_create(void);
+void kaypro_crt_set_host(kaypro_crt_t *crt, const struct kaypro_host_ops *host);
 
 /* Captured console echo bytes (char plane only), for smoke tests. */
 unsigned kaypro_crt_tx_count(const kaypro_crt_t *crt);

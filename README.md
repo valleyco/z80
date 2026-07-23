@@ -1,8 +1,10 @@
 # Z80 / Kaypro emulator monorepo
 
-- **`z80/`** — M-cycle Z80 CPU library (`libz80.a`)
-- **`emu/`** — generic port-device framework
-- **`kaypro/`** — Kaypro 4/84 CP/M machine emulator
+- **`z80/`** — M-cycle Z80 CPU library (`libz80.a`), freestanding
+- **`emu/`** — generic port-device framework, freestanding
+- **`kaypro/`** — Kaypro 4/84 CP/M machine + host backends
+  - portable: `kaypro/src/machine`, `kaypro/src/devices`
+  - desktop host: `kaypro/src/host/posix` (ESP32 host can plug in later via the same `kaypro_host_ops_t`)
 
 ## Build
 
@@ -23,4 +25,4 @@ bash tools/fetch_kaypro_assets.sh
   --disk-a kaypro/assets/kaypro1.dsk
 ```
 
-See [kaypro/README.md](kaypro/README.md) for more run examples, and [z80/README.md](z80/README.md) for CPU core details.
+See [kaypro/README.md](kaypro/README.md) for layout, host ops, and more run examples, and [z80/README.md](z80/README.md) for CPU core details.

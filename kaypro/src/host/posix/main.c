@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "kaypro.h"
+#include "kaypro_host.h"
 
 static void usage(const char *prog) {
   fprintf(stderr,
@@ -65,6 +66,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Failed to create machine\n");
     return 1;
   }
+
+  kaypro_host_posix_install(m);
 
   if (!kaypro_load_rom(m, rom_path)) {
     fprintf(stderr, "Failed to load ROM: %s\n", rom_path);
