@@ -124,6 +124,41 @@ int main(void) {
     assert(kaypro_crt_is_dirty(m->crt));
   }
 
+  /* Hardware scroll: R12/R13 start address shifts the visible window. */
+  crt_set_addr(m, 0, false);
+  crt_strobe(m);
+  for (int i = 0; i < KAYPRO_CRT_COLS; i++) write_port(m, PORT_CRT_DATA, 'A');
+  for (int i = 0; i < KAYPRO_CRT_COLS; i++) write_port(m, PORT_CRT_DATA, 'B');
+  crt_write_reg(m, 0x0C, 0x00);
+  crt_write_reg(m, 0x0D, (uint8_t)KAYPRO_CRT_COLS); /* start at row 1 */
+  {
+    const uint8_t *cells = kaypro_crt_cells(m->crt);
+    assert(cells[0] == 'B');
+    assert(cells[KAYPRO_CRT_COLS - 1] == 'B');
+  }
+  /* Cursor at absolute addr COLS+5 → visible col 5, row 0 after scroll. */
+  crt_write_reg(m, 0x0E, 0x00);
+  crt_write_reg(m, 0x0F, (uint8_t)(KAYPRO_CRT_COLS + 5));
+  {
+    unsigned col = 0;
+    unsigned row = 0;
+    kaypro_crt_cursor(m->crt, &col, &row);
+    assert(col == 5);
+    assert(row == 0);
+  }
+
+  /* Circular VRAM: address wraps at 2048, not 2000. */
+  crt_set_addr(m, 2047, false);
+  crt_strobe(m);
+  write_port(m, PORT_CRT_DATA, 'W');
+  write_port(m, PORT_CRT_DATA, 'X'); /* wraps to 0 */
+  crt_write_reg(m, 0x0C, 0x00);
+  crt_write_reg(m, 0x0D, 0x00);
+  {
+    const uint8_t *cells = kaypro_crt_cells(m->crt);
+    assert(cells[0] == 'X');
+  }
+
   kaypro_destroy(m);
   printf("kaypro crt smoke: ok\n");
   return 0;

@@ -4,6 +4,8 @@
 
 #include "crt6845.h"
 
+#define CRT_REG_START_HI 0x0C
+#define CRT_REG_START_LO 0x0D
 #define CRT_REG_CURSOR_HI 0x0E
 #define CRT_REG_CURSOR_LO 0x0F
 #define CRT_REG_ADDR_HI 0x12
@@ -16,17 +18,33 @@ typedef struct {
   uint16_t mem_addr;
   bool attr_plane;
   bool dirty;
-  uint8_t cells[KAYPRO_CRT_CELLS];
+  bool view_valid;
+  uint8_t vram[KAYPRO_CRT_VRAM];
+  uint8_t view[KAYPRO_CRT_CELLS];
 } crt_impl_t;
 
 static void crt_fill_spaces(crt_impl_t *crt) {
-  memset(crt->cells, ' ', sizeof(crt->cells));
+  memset(crt->vram, ' ', sizeof(crt->vram));
+  crt->view_valid = false;
   crt->dirty = true;
 }
 
+static uint16_t crt_start_addr(const crt_impl_t *crt) {
+  return (uint16_t)(((crt->regs[CRT_REG_START_HI] & 0x07) << 8) |
+                    crt->regs[CRT_REG_START_LO]);
+}
+
 static uint16_t crt_cursor_addr(const crt_impl_t *crt) {
-  return (uint16_t)(((crt->regs[CRT_REG_CURSOR_HI] & 0x3F) << 8) |
+  return (uint16_t)(((crt->regs[CRT_REG_CURSOR_HI] & 0x07) << 8) |
                     crt->regs[CRT_REG_CURSOR_LO]);
+}
+
+static void crt_rebuild_view(crt_impl_t *crt) {
+  uint16_t start = (uint16_t)(crt_start_addr(crt) & KAYPRO_CRT_VRAM_MASK);
+  for (unsigned i = 0; i < KAYPRO_CRT_CELLS; i++) {
+    crt->view[i] = crt->vram[(start + i) & KAYPRO_CRT_VRAM_MASK];
+  }
+  crt->view_valid = true;
 }
 
 static int crt_read_status(void *dev, int port) {
@@ -50,9 +68,9 @@ static int crt_read_unused(void *dev, int port) {
 }
 
 static int crt_read_data(void *dev, int port) {
-  (void)dev;
+  crt_impl_t *crt = (crt_impl_t *)dev;
   (void)port;
-  return 0x20;
+  return crt->vram[crt->mem_addr & KAYPRO_CRT_VRAM_MASK];
 }
 
 static void crt_write_cmd(void *dev, int port, int value) {
@@ -74,6 +92,11 @@ static void crt_write_regdata(void *dev, int port, int value) {
   if (crt->reg_sel < 32) crt->regs[crt->reg_sel] = (uint8_t)value;
   if (crt->reg_sel == CRT_REG_ADDR_HI || crt->reg_sel == CRT_REG_ADDR_LO)
     crt_apply_addr(crt);
+  /* Hardware scroll: BIOS advances R12/R13 instead of moving VRAM. */
+  if (crt->reg_sel == CRT_REG_START_HI || crt->reg_sel == CRT_REG_START_LO) {
+    crt->view_valid = false;
+    crt->dirty = true;
+  }
   /* Visible hardware cursor (R14/R15) — host must repaint to move it. */
   if (crt->reg_sel == CRT_REG_CURSOR_HI || crt->reg_sel == CRT_REG_CURSOR_LO)
     crt->dirty = true;
@@ -89,11 +112,12 @@ static void crt_write_data(void *dev, int port, int value) {
   crt_impl_t *crt = (crt_impl_t *)dev;
   (void)port;
   if (!crt->attr_plane) {
-    unsigned idx = (unsigned)crt->mem_addr % KAYPRO_CRT_CELLS;
-    crt->cells[idx] = (uint8_t)value;
+    unsigned idx = (unsigned)crt->mem_addr & KAYPRO_CRT_VRAM_MASK;
+    crt->vram[idx] = (uint8_t)value;
+    crt->view_valid = false;
     crt->dirty = true;
   }
-  crt->mem_addr = (uint16_t)((crt->mem_addr + 1) & 0x7FF);
+  crt->mem_addr = (uint16_t)((crt->mem_addr + 1) & KAYPRO_CRT_VRAM_MASK);
 }
 
 static void crt_reset(EmuDevice *dev) {
@@ -102,6 +126,7 @@ static void crt_reset(EmuDevice *dev) {
   crt->reg_sel = 0;
   crt->mem_addr = 0;
   crt->attr_plane = false;
+  crt->view_valid = false;
   crt_fill_spaces(crt);
 }
 
@@ -113,7 +138,9 @@ static void (*crt_writes[])(void *, int, int) = {
     crt_write_cmd, crt_write_regdata, crt_write_unused, crt_write_data};
 
 const uint8_t *kaypro_crt_cells(const kaypro_crt_t *crt) {
-  return ((const crt_impl_t *)crt)->cells;
+  crt_impl_t *impl = (crt_impl_t *)crt;
+  if (!impl->view_valid) crt_rebuild_view(impl);
+  return impl->view;
 }
 
 unsigned kaypro_crt_cols(void) { return KAYPRO_CRT_COLS; }
@@ -122,9 +149,12 @@ unsigned kaypro_crt_rows(void) { return KAYPRO_CRT_ROWS; }
 
 void kaypro_crt_cursor(const kaypro_crt_t *crt, unsigned *col, unsigned *row) {
   const crt_impl_t *impl = (const crt_impl_t *)crt;
-  unsigned idx = (unsigned)crt_cursor_addr(impl) % KAYPRO_CRT_CELLS;
-  if (col) *col = idx % KAYPRO_CRT_COLS;
-  if (row) *row = idx / KAYPRO_CRT_COLS;
+  uint16_t start = (uint16_t)(crt_start_addr(impl) & KAYPRO_CRT_VRAM_MASK);
+  uint16_t cur = (uint16_t)(crt_cursor_addr(impl) & KAYPRO_CRT_VRAM_MASK);
+  unsigned off = (unsigned)((cur - start) & KAYPRO_CRT_VRAM_MASK);
+  if (off >= KAYPRO_CRT_CELLS) off = KAYPRO_CRT_CELLS - 1;
+  if (col) *col = off % KAYPRO_CRT_COLS;
+  if (row) *row = off / KAYPRO_CRT_COLS;
 }
 
 bool kaypro_crt_is_dirty(const kaypro_crt_t *crt) {
