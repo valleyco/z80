@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Rewrite a Kaypro SSDD raw image (cpmtools kpii) into DSDD (kpiv) so SS apps
+# are usable under Universal / Kaypro 4 CP/M (2K allocation blocks).
+#
+# Usage: ssdd_to_dsdd input_ssdd.dsk output_dsdd.dsk
+set -euo pipefail
+
+SSDD_SIZE=204800
+DSDD_SIZE=409600
+DISKDEFS="${CPMTOOLS_DISKDEFS:-/etc/cpmtools/diskdefs}"
+
+usage() {
+  echo "Usage: $0 input_ssdd.dsk output_dsdd.dsk" >&2
+  exit 1
+}
+
+[[ $# -eq 2 ]] || usage
+IN="$1"
+OUT="$2"
+
+need() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "error: missing '$1' (install cpmtools)" >&2
+    exit 1
+  }
+}
+
+need mkfs.cpm
+need cpmls
+need cpmcp
+
+if [[ ! -f "$DISKDEFS" ]]; then
+  echo "error: diskdefs not found at $DISKDEFS" >&2
+  exit 1
+fi
+if ! grep -q '^diskdef kpii$' "$DISKDEFS"; then
+  echo "error: 'kpii' format missing from $DISKDEFS" >&2
+  exit 1
+fi
+if ! grep -q '^diskdef kpiv$' "$DISKDEFS"; then
+  echo "error: 'kpiv' format missing from $DISKDEFS" >&2
+  exit 1
+fi
+
+if [[ ! -f "$IN" ]]; then
+  echo "error: input not found: $IN" >&2
+  exit 1
+fi
+
+in_size=$(wc -c < "$IN" | tr -d ' ')
+if [[ "$in_size" -ne "$SSDD_SIZE" ]]; then
+  echo "warning: input size $in_size (expected $SSDD_SIZE for SSDD); continuing" >&2
+fi
+
+tmpdir=$(mktemp -d)
+trap 'rm -rf "$tmpdir"' EXIT
+
+# cpmls prints "0:" then one filename per line.
+mapfile -t files < <(cpmls -f kpii "$IN" | awk '
+  /^[0-9]+:$/ { next }
+  /^[[:space:]]*$/ { next }
+  { print $1 }
+')
+
+for name in "${files[@]+"${files[@]}"}"; do
+  # Extract: image user:file → local file
+  cpmcp -f kpii "$IN" "0:${name}" "$tmpdir/${name}"
+done
+
+# mkfs.cpm alone may leave a short image; pre-size to full kpiv geometry.
+truncate -s "$DSDD_SIZE" "$OUT"
+mkfs.cpm -f kpiv "$OUT"
+# Ensure full size if mkfs truncated.
+truncate -s "$DSDD_SIZE" "$OUT"
+
+for name in "${files[@]+"${files[@]}"}"; do
+  # Insert: local file → image user:file
+  cpmcp -f kpiv "$OUT" "$tmpdir/${name}" "0:${name}"
+done
+
+out_size=$(wc -c < "$OUT" | tr -d ' ')
+if [[ "$out_size" -ne "$DSDD_SIZE" ]]; then
+  echo "error: output size $out_size (expected $DSDD_SIZE)" >&2
+  exit 1
+fi
+
+echo "Wrote $OUT ($out_size bytes, ${#files[@]} file(s) from kpii → kpiv)"
